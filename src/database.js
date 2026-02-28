@@ -24,17 +24,51 @@ async function initialize() {
         if (fs.existsSync(dbPath)) {
             const buffer = fs.readFileSync(dbPath);
             db = new SQL.Database(buffer);
-            console.log('📂 Database loaded from file');
+            
+            // Integrity check — detect corrupted database
+            try {
+                const result = db.exec('PRAGMA integrity_check');
+                const status = result[0]?.values[0]?.[0];
+                if (status !== 'ok') {
+                    throw new Error(`Integrity check failed: ${status}`);
+                }
+                console.log('📂 Database loaded from file (integrity OK)');
+            } catch (integrityError) {
+                console.error('⚠️ Database corrupted:', integrityError.message);
+                // Backup corrupted file
+                const backupPath = dbPath + `.corrupted.${Date.now()}`;
+                try {
+                    fs.copyFileSync(dbPath, backupPath);
+                    console.log(`📦 Corrupted database backed up to: ${backupPath}`);
+                } catch (e) { /* ignore backup errors */ }
+                // Create fresh database
+                db = new SQL.Database();
+                console.log('📂 New database created (old was corrupted)');
+            }
         } else {
             db = new SQL.Database();
             console.log('📂 New database created');
         }
     } catch (error) {
         console.error('Error loading database:', error);
+        // Backup corrupted file if it exists
+        if (fs.existsSync(dbPath)) {
+            const backupPath = dbPath + `.corrupted.${Date.now()}`;
+            try {
+                fs.copyFileSync(dbPath, backupPath);
+                console.log(`📦 Corrupted database backed up to: ${backupPath}`);
+            } catch (e) { /* ignore */ }
+        }
         db = new SQL.Database();
     }
     
-    createTables();
+    try {
+        createTables();
+    } catch (tableError) {
+        console.error('⚠️ Error creating tables, resetting database:', tableError.message);
+        db = new SQL.Database();
+        createTables();
+    }
 }
 
 // Save database to file
