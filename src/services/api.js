@@ -96,9 +96,10 @@ class APIService {
                 const data = response.data;
 
                 if (!data.result || !data.data || data.data.length === 0) {
+                    const isQuota = data.message && data.message.toLowerCase().includes('kuota');
                     return {
                         success: false,
-                        error: data.message || 'Data tidak ditemukan',
+                        error: isQuota ? '⚠️ Kuota server habis, normal kembali jam 00:00 WIB' : (data.message || 'Data tidak ditemukan'),
                         refund: true
                     };
                 }
@@ -161,9 +162,10 @@ class APIService {
                 const raw = response.data;
 
                 if (!raw.result) {
+                    const isQuota = raw.message && raw.message.toLowerCase().includes('kuota');
                     return {
                         success: false,
-                        error: raw.message || 'Data tidak ditemukan',
+                        error: isQuota ? '⚠️ Kuota server habis, normal kembali jam 00:00 WIB' : (raw.message || 'Data tidak ditemukan'),
                         refund: true
                     };
                 }
@@ -220,9 +222,10 @@ class APIService {
                 const data = response.data;
 
                 if (!data.result || !data.data || (Array.isArray(data.data) && data.data.length === 0)) {
+                    const isQuota = data.message && data.message.toLowerCase().includes('kuota');
                     return {
                         success: false,
-                        error: data.message || 'Data KK tidak ditemukan',
+                        error: isQuota ? '⚠️ Kuota server habis, normal kembali jam 00:00 WIB' : (data.message || 'Data KK tidak ditemukan'),
                         refund: true
                     };
                 }
