@@ -155,7 +155,7 @@ Harga: ${formatRupiah(tokenPrice)}/token
 
 <b>2️⃣ CEK DATA</b>
 
-� <b>/ceknomor</b> &lt;NoHP&gt;
+📱 <b>/ceknomor</b> &lt;NoHP&gt;
    Biaya: <code>${ceknomorCost} token</code>
    Data: Nama, NIK, Provider, Alamat
 
@@ -183,7 +183,7 @@ Harga: ${formatRupiah(tokenPrice)}/token
    Biaya: <code>${nopolCost} token</code>
    Data: Info Kendaraan (auto-detect)
 
-� <b>/databocor</b> &lt;query&gt;
+🔓 <b>/databocor</b> &lt;query&gt;
    Biaya: <code>${databocorCost} token</code>
    Data: Leak OSINT (email/phone/name/domain)
 
@@ -196,7 +196,7 @@ Harga: ${formatRupiah(tokenPrice)}/token
    Mode: <code>crashinvis</code> | <code>invisdelay</code>
    Sub: <code>/bugwa stop</code> | <code>/bugwa status</code>
 
-�📋 <b>/riwayat</b>
+📋 <b>/riwayat</b>
    Biaya: <code>GRATIS</code>
    Data: ${riwayatDays} hari terakhir
 
@@ -229,7 +229,7 @@ Bot pencarian data NIK Indonesia.
 📊 Cek Hari Ini: <b>${todayChecks}x</b>
 
 ${EMOJI.sparkle} <b>FITUR PENCARIAN:</b>
-� /ceknomor - Cek Nomor HP
+📱 /ceknomor - Cek Nomor HP
 🔍 /ceknik - Cek NIK Basic
 👤 /nama - Cari berdasarkan Nama
 👨‍👩‍👧‍👦 /kk - Cek Kartu Keluarga
@@ -1109,8 +1109,8 @@ ${LINE.double}
 <b>⚙️ SETTINGS</b>
 💰 /setprice &lt;harga&gt;
 🪙 /setcost &lt;fitur&gt; &lt;cost&gt;
-� /setdeposit &lt;min&gt; (min deposit)
-�🔑 /setapi &lt;type&gt; &lt;key&gt;
+💵 /setdeposit &lt;min&gt; (min deposit)
+🔑 /setapi &lt;type&gt; &lt;key&gt;
 🛠️ /setmt &lt;fitur&gt; &lt;on/off&gt;
 ⚙️ /settings
 

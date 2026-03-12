@@ -153,7 +153,7 @@ Pilih fitur yang ingin digunakan:
         // Build inline keyboard with costs
         const inlineKeyboard = [
             [
-                { text: `� CekNomor (${ceknomorCost}t)`, callback_data: 'menu_ceknomor' }
+                { text: `📱 CekNomor (${ceknomorCost}t)`, callback_data: 'menu_ceknomor' }
             ],
             [
                 { text: `🔍 CekNIK (${checkCost}t)`, callback_data: 'menu_ceknik' },
@@ -1694,7 +1694,7 @@ Pilih fitur yang ingin digunakan:
                 'ceknik': '🔍',
                 'nama': '👤',
                 'kk': '👨‍👩‍👧‍👦',
-                'foto': '📷',
+                'ceknomor': '📱',
                 'edabu': '🏥'
             }[req.command] || '📝';
             

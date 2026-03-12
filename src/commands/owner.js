@@ -632,7 +632,7 @@ const ownerCommands = {
             return;
         }
 
-        const validFeatures = ['all', 'ceknik', 'nama', 'kk', 'foto', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact', 'bugwa'];
+        const validFeatures = ['all', 'ceknik', 'nama', 'kk', 'ceknomor', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact', 'bugwa'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -690,7 +690,7 @@ const ownerCommands = {
     async setcost(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nFitur: ceknik, nama, kk, foto, edabu, bpjstk, nopol, databocor, getcontact, getdata, bugwa\nContoh: <code>/setcost ceknik 2</code>`,
+                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nFitur: ceknomor, ceknik, nama, kk, edabu, bpjstk, nopol, databocor, getcontact, getdata, bugwa\nContoh: <code>/setcost ceknomor 3</code>`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -699,7 +699,7 @@ const ownerCommands = {
         const feature = args[0].toLowerCase();
         const cost = parseFloat(args[1]);
         
-        const validFeatures = ['ceknik', 'nama', 'kk', 'foto', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact', 'getdata', 'bugwa'];
+        const validFeatures = ['ceknomor', 'ceknik', 'nama', 'kk', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact', 'getdata', 'bugwa'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -718,10 +718,10 @@ const ownerCommands = {
 
         // Map feature name to database key
         const featureKeyMap = {
+            'ceknomor': 'ceknomor_cost',
             'ceknik': 'check_cost',
             'nama': 'nama_cost',
             'kk': 'kk_cost',
-            'foto': 'foto_cost',
             'edabu': 'edabu_cost',
             'bpjstk': 'bpjstk_cost',
             'nopol': 'nopol_cost',
@@ -790,7 +790,7 @@ const ownerCommands = {
         const checkCost = parseInt(settings.check_cost) || config.checkCost;
         const namaCost = parseInt(settings.nama_cost) || config.namaCost;
         const kkCost = parseInt(settings.kk_cost) || config.kkCost;
-        const fotoCost = parseInt(settings.foto_cost) || config.fotoCost;
+        const ceknomorCost = parseInt(settings.ceknomor_cost) || config.ceknomorCost;
         const edabuCost = parseInt(settings.edabu_cost) || config.edabuCost;
         const nopolCost = parseInt(settings.nopol_cost) || config.nopolCost;
         const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
@@ -800,7 +800,7 @@ const ownerCommands = {
         const mtCeknik = settings.mt_ceknik === 'true' ? '🔴 ON' : '🟢 OFF';
         const mtNama = settings.mt_nama === 'true' ? '🔴 ON' : '🟢 OFF';
         const mtKk = settings.mt_kk === 'true' ? '🔴 ON' : '🟢 OFF';
-        const mtFoto = settings.mt_foto === 'true' ? '🔴 ON' : '🟢 OFF';
+        const mtCeknomor = settings.mt_ceknomor === 'true' ? '🔴 ON' : '🟢 OFF';
         const mtEdabu = settings.mt_edabu === 'true' ? '🔴 ON' : '🟢 OFF';
         const mtNopol = settings.mt_nopol === 'true' ? '🔴 ON' : '🟢 OFF';
 
@@ -810,10 +810,10 @@ const ownerCommands = {
         text += `Token: <b>${formatter.formatRupiah(tokenPrice)}</b>\n`;
         
         text += '\n<b>━━━ 🪙 BIAYA ━━━</b>\n';
+        text += `ceknomor: ${ceknomorCost}t\n`;
         text += `ceknik: ${checkCost}t\n`;
         text += `nama: ${namaCost}t\n`;
         text += `kk: ${kkCost}t\n`;
-        text += `foto: ${fotoCost}t\n`;
         text += `edabu: ${edabuCost}t\n`;
         text += `nopol: ${nopolCost}t\n`;
         text += `databocor: ${databocorCost}t\n`;
@@ -824,7 +824,7 @@ const ownerCommands = {
         text += `ceknik: ${mtCeknik}\n`;
         text += `nama: ${mtNama}\n`;
         text += `kk: ${mtKk}\n`;
-        text += `foto: ${mtFoto}\n`;
+        text += `ceknomor: ${mtCeknomor}\n`;
         text += `edabu: ${mtEdabu}\n`;
         text += `nopol: ${mtNopol}\n`;
 
