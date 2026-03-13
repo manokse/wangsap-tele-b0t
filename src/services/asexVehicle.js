@@ -53,17 +53,36 @@ class AsexVehicleService {
             });
 
             const data = response.data || {};
-            if (!data.status || !data.request_id) {
+            if (data.status && (data.result || data.data)) {
+                return {
+                    success: true,
+                    immediateResult: data.result || data.data,
+                    source: data.source || 'direct',
+                    message: data.message || 'Data kendaraan langsung tersedia',
+                    refund: false
+                };
+            }
+
+            const requestCode = data.request_id || data.request_code || data.code || null;
+            if (!data.status || !requestCode) {
+                console.warn('[ASEX] Invalid submit payload:', {
+                    type,
+                    value,
+                    status: data.status,
+                    hasRequestId: Boolean(data.request_id),
+                    hasRequestCode: Boolean(data.request_code),
+                    message: data.message || null
+                });
                 return {
                     success: false,
-                    error: data.message || 'Request kendaraan gagal diproses',
+                    error: data.message || 'Request kendaraan gagal diproses (request_code tidak ditemukan)',
                     refund: true
                 };
             }
 
             return {
                 success: true,
-                requestCode: data.request_id,
+                requestCode,
                 source: data.source || 'queue',
                 message: data.message || 'Request queued, processing...',
                 refund: false
@@ -115,6 +134,14 @@ class AsexVehicleService {
                     refund: false
                 };
             }
+
+            console.warn('[ASEX] Unknown result payload:', {
+                requestCode,
+                status: data.status,
+                state: data.state || null,
+                hasResult: Boolean(data.result),
+                message: data.message || null
+            });
 
             return {
                 success: false,

@@ -660,7 +660,7 @@ const ownerCommands = {
     async setmt(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, nama, kk, foto, edabu, bpjstk, nopol, databocor, getcontact, bugwa`,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, nama, kk, ceknomor, edabu, bpjstk, nopol, databocor, getcontact`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -677,7 +677,7 @@ const ownerCommands = {
             return;
         }
 
-        const validFeatures = ['all', 'ceknik', 'nama', 'kk', 'ceknomor', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact', 'bugwa'];
+        const validFeatures = ['all', 'ceknik', 'nama', 'kk', 'ceknomor', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -735,7 +735,7 @@ const ownerCommands = {
     async setcost(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nFitur: ceknomor, ceknik, nama, kk, edabu, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, getdata, bugwa\nContoh: <code>/setcost ceknomor 3</code>`,
+                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nFitur: ceknomor, ceknik, nama, kk, edabu, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, getdata\nContoh: <code>/setcost ceknomor 3</code>`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -744,7 +744,7 @@ const ownerCommands = {
         const feature = args[0].toLowerCase();
         const cost = parseFloat(args[1]);
         
-        const validFeatures = ['ceknomor', 'ceknik', 'nama', 'kk', 'edabu', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'bugwa'];
+        const validFeatures = ['ceknomor', 'ceknik', 'nama', 'kk', 'edabu', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -775,8 +775,7 @@ const ownerCommands = {
             'nikplat': 'nikplat_cost',
             'databocor': 'databocor_cost',
             'getcontact': 'getcontact_cost',
-            'getdata': 'getdata_cost',
-            'bugwa': 'bugwa_cost'
+            'getdata': 'getdata_cost'
         };
         
         const settingKey = featureKeyMap[feature] || `${feature}_cost`;

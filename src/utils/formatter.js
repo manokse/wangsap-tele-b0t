@@ -86,7 +86,7 @@ function menuMessage() {
     const checkCost = parseInt(settings.check_cost) || config.checkCost;
     const namaCost = parseInt(settings.nama_cost) || config.namaCost;
     const kkCost = parseInt(settings.kk_cost) || config.kkCost;
-    const fotoCost = parseInt(settings.foto_cost) || config.fotoCost;
+    const ceknomorCost = parseInt(settings.ceknomor_cost) || config.ceknomorCost;
     const edabuCost = parseInt(settings.edabu_cost) || config.edabuCost;
     const bpjstkCost = parseInt(settings.bpjstk_cost) || config.bpjstkCost || 3;
     const nopolCost = parseInt(settings.nopol_cost) || config.nopolCost;
@@ -95,7 +95,6 @@ function menuMessage() {
     const nikplatCost = parseInt(settings.nikplat_cost) || config.nikplatCost;
     const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
     const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
-    const bugwaCost = parseInt(settings.bugwa_cost) || config.bugwaCost || 3;
 
     return `
 ${EMOJI.diamond} <b>${config.botName.toUpperCase()}</b>
@@ -115,7 +114,6 @@ ${LINE.sep}
  🪪 /nikplat • <code>${nikplatCost} token</code>
 🔓 /databocor • <code>${databocorCost} token</code>
 📱 /getcontact • <code>${getcontactCost} token</code>
-💥 /bugwa • <code>${bugwaCost} token</code>
 
 ${EMOJI.user} <b>MENU USER</b>
 ${LINE.sep}
@@ -149,7 +147,6 @@ function helpMessage() {
     const nikplatCost = parseInt(settings.nikplat_cost) || config.nikplatCost;
     const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
     const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
-    const bugwaCost = parseInt(settings.bugwa_cost) || config.bugwaCost || 3;
     const getdataCost = parseFloat(settings.getdata_cost) || config.getdataCost;
     const riwayatDays = parseInt(settings.riwayat_days) || config.riwayatDays;
     const minTopup = parseInt(settings.min_topup) || config.minTopupToken;
@@ -212,11 +209,6 @@ Harga: ${formatRupiah(tokenPrice)}/token
    Biaya: <code>${getcontactCost} token</code>
    Data: Multi-source caller ID lookup
 
-💥 <b>/bugwa</b> &lt;target&gt; &lt;mode&gt;
-   Biaya: <code>${bugwaCost} token</code>
-   Mode: <code>crashinvis</code> | <code>invisdelay</code>
-   Sub: <code>/bugwa stop</code> | <code>/bugwa status</code>
-
 📋 <b>/riwayat</b>
    Biaya: <code>GRATIS</code>
    Data: ${riwayatDays} hari terakhir
@@ -262,7 +254,6 @@ ${EMOJI.sparkle} <b>FITUR PENCARIAN:</b>
 🪪 /nikplat - Cek Kendaraan dari NIK KTP
  /databocor - Leak OSINT
 📱 /getcontact - Caller ID Lookup
-💥 /bugwa - WA Crash Sender
 
 <i>Ketik /menu untuk info lengkap</i>
 `;

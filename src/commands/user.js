@@ -3,7 +3,6 @@ const db = require('../database');
 const apiService = require('../services/api');
 const paymentService = require('../services/payment');
 const asexVehicleService = require('../services/asexVehicle');
-const bugwaService = require('../services/bugwa');
 const { isValidNIK, isValidKK } = require('../utils/helper');
 const formatter = require('../utils/formatter');
 const { ceknomorResultMessage } = require('../utils/formatter');
@@ -143,7 +142,6 @@ const userCommands = {
         const nopolCost = parseInt(settings.nopol_cost) || config.nopolCost;
         const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
         const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
-        const bugwaCost = parseInt(settings.bugwa_cost) || config.bugwaCost || 3;
         
         const text = `📋 <b>MENU PENCARIAN</b>
 
@@ -177,9 +175,6 @@ Pilih fitur yang ingin digunakan:
             [
                 { text: ` DataBocor (${databocorCost}t)`, callback_data: 'menu_databocor' },
                 { text: `📱 GetContact (${getcontactCost}t)`, callback_data: 'menu_getcontact' }
-            ],
-            [
-                { text: `💥 BugWA (${bugwaCost}t)`, callback_data: 'menu_bugwa' },
             ],
             [
                 { text: '💳 Deposit', callback_data: 'goto_deposit' },
@@ -1116,6 +1111,33 @@ Pilih fitur yang ingin digunakan:
             return;
         }
 
+        const isUsableVehicleData = (data) => {
+            if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+            const values = Object.values(data);
+            if (values.length === 0) return false;
+            return values.some(v => {
+                if (v === null || v === undefined) return false;
+                const str = String(v).trim();
+                return str !== '' && str !== '-';
+            });
+        };
+
+        const cacheMaxAgeDays = 9999 / 24;
+        const cached = db.getCachedApiResponse(commandName, query, cacheMaxAgeDays);
+        const cachedData = cached?.response_data;
+        if (isUsableVehicleData(cachedData)) {
+            const requestId = db.createApiRequest(userId, commandName, query, 'asex_vehicle', lookupCost);
+            db.deductTokens(userId, lookupCost);
+            db.updateApiRequest(requestId, 'success', `${cachedData?.nama_pemilik || 'Data kendaraan'}`, null, null, cachedData);
+            db.createTransaction(userId, 'check', lookupCost, `${title} berhasil`, query, 'success');
+
+            const latestUser = db.getUser(userId);
+            const latestRemaining = latestUser?.token_balance || 0;
+            const text = formatter.nopolResultMessage(cachedData, lookupCost, requestId, latestRemaining);
+            await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
+            return;
+        }
+
         const requestId = db.createApiRequest(userId, commandName, query, 'asex_vehicle', lookupCost);
         const processingMsg = await bot.sendMessage(msg.chat.id,
             `⏳ <b>Sedang Proses...</b>\n\n🔍 ${formatter.escapeHtml(title)}: <b>${formatter.escapeHtml(query)}</b>\n🆔 ID: <code>${requestId}</code>\n<i>Masuk antrian, hasil bisa 2 menit atau lebih</i>`,
@@ -1133,6 +1155,22 @@ Pilih fitur yang ingin digunakan:
                 `❌ <b>Gagal</b>\n\n${formatter.escapeHtml(submit.error)}\n\n${submit.refund ? `🪙 Token dikembalikan: <b>${lookupCost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`,
                 { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
             );
+            return;
+        }
+
+        if (submit.immediateResult) {
+            db.updateApiRequest(requestId, 'success', `${submit.immediateResult?.nama_pemilik || 'Data kendaraan'}`, null, null, submit.immediateResult);
+            db.createTransaction(userId, 'check', lookupCost, `${title} berhasil`, query, 'success');
+
+            const latestUser = db.getUser(userId);
+            const latestRemaining = latestUser?.token_balance || 0;
+            const text = formatter.nopolResultMessage(submit.immediateResult, lookupCost, requestId, latestRemaining);
+
+            await bot.editMessageText(text, {
+                chat_id: msg.chat.id,
+                message_id: processingMsg.message_id,
+                parse_mode: 'HTML'
+            });
             return;
         }
 
@@ -1179,10 +1217,6 @@ Pilih fitur yang ingin digunakan:
 
     async nikplat(bot, msg, args) {
         return this._vehicleLookup(bot, msg, args, 'nikplat', 'nikplat_cost', 'Cek NikPlat', '3201381611850001');
-    },
-
-    async nik(bot, msg, args) {
-        return this.nikplat(bot, msg, args);
     },
 
     /**
@@ -1252,7 +1286,6 @@ Pilih fitur yang ingin digunakan:
             if (!result.success) {
                 const cached = db.getCachedApiResponse('bpjstk', nik);
                 if (cached && cached.response_data) {
-                    console.log(`📦 Using cached data for BPJSTK: ${nik}`);
                     result = {
                         success: true,
                         data: cached.response_data,
@@ -1266,8 +1299,8 @@ Pilih fitur yang ingin digunakan:
                     db.refundTokens(userId, bpjstkCost);
                 }
                 db.updateApiRequest(requestId, 'failed', null, null, result.error);
-                db.createTransaction(userId, 'check', bpjstkCost, `Cek BPJS Ketenagakerjaan gagal`, nik, 'failed');
-                
+                db.createTransaction(userId, 'check', bpjstkCost, 'Cek BPJSTK gagal', nik, 'failed');
+
                 await bot.editMessageText(
                     `❌ <b>Gagal</b>\n\n${formatter.escapeHtml(result.error)}\n\n${result.refund ? `🪙 Token dikembalikan: <b>${bpjstkCost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`,
                     { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
@@ -1275,69 +1308,56 @@ Pilih fitur yang ingin digunakan:
                 return;
             }
 
-            const apiRemaining = result.data?.quota?.remaining || null;
             if (!result.fromCache) {
-                db.updateApiRequest(requestId, 'success', `Data BPJSTK`, apiRemaining?.toString(), null, result.data);
+                db.updateApiRequest(requestId, 'success', 'Data BPJSTK ditemukan', null, null, result.data);
             }
-            db.createTransaction(userId, 'check', bpjstkCost, `Cek BPJS Ketenagakerjaan berhasil${result.fromCache ? ' (cache)' : ''}`, nik, 'success');
+            db.createTransaction(userId, 'check', bpjstkCost, `Cek BPJSTK berhasil${result.fromCache ? ' (cache)' : ''}`, nik, 'success');
 
-            let text = formatter.bpjstkResultMessage(result.data, bpjstkCost, requestId, remainingToken, apiRemaining);
+            let textResult = formatter.bpjstkResultMessage(result.data, bpjstkCost, requestId, remainingToken);
             if (result.fromCache) {
-                text = `📦 <i>Data dari Cache</i>\n\n` + text;
+                textResult = `📦 <i>Data dari cache</i>\n\n${textResult}`;
             }
-            
-            await bot.editMessageText(text, {
+
+            await bot.editMessageText(textResult, {
                 chat_id: msg.chat.id,
                 message_id: processingMsg.message_id,
                 parse_mode: 'HTML'
             });
-
         } catch (error) {
-            console.error('BPJSTK Error:', error);
             db.refundTokens(userId, bpjstkCost);
             db.updateApiRequest(requestId, 'failed', null, null, error.message);
-            
+            db.createTransaction(userId, 'check', bpjstkCost, 'Cek BPJSTK gagal', nik, 'failed');
+
             await bot.editMessageText(
                 `❌ <b>Error</b>\n\n${formatter.escapeHtml(error.message)}\n\n🪙 Token dikembalikan: <b>${bpjstkCost} token</b>\n🆔 ID: <code>${requestId}</code>`,
                 { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
-            );
+            ).catch(() => {});
         }
     },
 
     /**
      * Command: /deposit [jumlah] [kode_promo]
-     * Show interactive deposit menu with +/- buttons OR process specific amount
-     * Support promo code untuk bonus token
      */
     async deposit(bot, msg, args) {
         const userId = msg.from.id;
         const firstName = msg.from.first_name || 'User';
         const username = msg.from.username || null;
-        
-        const settings = db.getAllSettings();
-        const tokenPrice = parseInt(settings.token_price) || config.tokenPrice;
-        const minDeposit = parseInt(settings.min_deposit) || 2000; // Min deposit dari settings
-        const minTopup = Math.ceil(minDeposit / tokenPrice); // Hitung min token dari min rupiah
 
-        db.getOrCreateUser(userId, username, firstName);
-
-        // If has args, process directly
         if (args.length > 0) {
             const tokenAmount = parseInt(args[0]);
             const promoCode = args[1] ? args[1].toUpperCase() : null;
 
-            if (isNaN(tokenAmount) || tokenAmount < minTopup) {
+            const validation = paymentService.validateTokenAmount(tokenAmount);
+            if (!validation.valid) {
                 await bot.sendMessage(msg.chat.id,
-                    `❌ <b>Jumlah Tidak Valid</b>\n\nMinimum deposit: <b>${minTopup} token</b>`,
+                    `❌ <b>Jumlah Token Tidak Valid</b>\n\n${formatter.escapeHtml(validation.error)}`,
                     { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
                 );
                 return;
             }
 
-            // Validate promo code or auto-apply best promo
             let promoInfo = null;
             if (promoCode) {
-                // User entered promo code
                 const promoValidation = db.validatePromo(promoCode, userId.toString(), tokenAmount);
                 if (!promoValidation.valid) {
                     await bot.sendMessage(msg.chat.id,
@@ -1348,31 +1368,28 @@ Pilih fitur yang ingin digunakan:
                 }
                 promoInfo = promoValidation;
             } else {
-                // Auto-apply best promo
                 const activePromos = db.getActivePromos();
                 let bestPromo = null;
                 let bestBonus = 0;
-                
+
                 for (const promo of activePromos) {
-                    const validation = db.validatePromo(promo.code, userId.toString(), tokenAmount);
-                    if (validation.valid && validation.bonusAmount > bestBonus) {
-                        bestPromo = validation;
-                        bestBonus = validation.bonusAmount;
+                    const p = db.validatePromo(promo.code, userId.toString(), tokenAmount);
+                    if (p.valid && p.bonusAmount > bestBonus) {
+                        bestPromo = p;
+                        bestBonus = p.bonusAmount;
                     }
                 }
-                
+
                 if (bestPromo) {
                     promoInfo = bestPromo;
                     promoInfo.autoApplied = true;
                 }
             }
 
-            // Process deposit directly with promo info
             await this._processDeposit(bot, msg.chat.id, userId, username, firstName, tokenAmount, msg.message_id, promoInfo);
             return;
         }
 
-        // Get active promos for display
         const activePromos = db.getActivePromos();
         let promoText = '';
         if (activePromos.length > 0) {
@@ -1383,7 +1400,6 @@ Pilih fitur yang ingin digunakan:
             promoText += `\n<i>Pakai: /deposit &lt;jumlah&gt; &lt;kode&gt;</i>`;
         }
 
-        // Show interactive deposit menu with +/- buttons
         const defaultAmount = 5;
         await this._sendDepositMenu(bot, msg.chat.id, userId, defaultAmount, msg.message_id, null, promoText);
     },
@@ -1394,8 +1410,8 @@ Pilih fitur yang ingin digunakan:
     async _sendDepositMenu(bot, chatId, userId, currentAmount, replyToMsgId = null, editMessageId = null, promoText = '') {
         const settings = db.getAllSettings();
         const tokenPrice = parseInt(settings.token_price) || config.tokenPrice;
-        const minDeposit = parseInt(settings.min_deposit) || 2000; // Min deposit dari settings
-        const minTopup = Math.ceil(minDeposit / tokenPrice); // Hitung min token dari min rupiah
+        const minDeposit = parseInt(settings.min_deposit) || 2000;
+        const minTopup = Math.ceil(minDeposit / tokenPrice);
         const totalPrice = currentAmount * tokenPrice;
 
         const text = `💳 <b>DEPOSIT TOKEN</b>\n\n` +
@@ -1407,9 +1423,7 @@ Pilih fitur yang ingin digunakan:
             `━━━━━━━━━━━━━━━━━━━${promoText}\n\n` +
             `👇 <i>Atur jumlah token:</i>`;
 
-        // Build interactive keyboard
         const inlineKeyboard = [
-            // Row 1: -10, -5, -1, +1, +5, +10
             [
                 { text: '-10', callback_data: `dep_dec_${userId}_${currentAmount}_10` },
                 { text: '-5', callback_data: `dep_dec_${userId}_${currentAmount}_5` },
@@ -1418,18 +1432,15 @@ Pilih fitur yang ingin digunakan:
                 { text: '+5', callback_data: `dep_inc_${userId}_${currentAmount}_5` },
                 { text: '+10', callback_data: `dep_inc_${userId}_${currentAmount}_10` }
             ],
-            // Row 2: Quick amounts
             [
                 { text: '🪙 10', callback_data: `dep_set_${userId}_10` },
                 { text: '🪙 25', callback_data: `dep_set_${userId}_25` },
                 { text: '🪙 50', callback_data: `dep_set_${userId}_50` },
                 { text: '🪙 100', callback_data: `dep_set_${userId}_100` }
             ],
-            // Row 3: Confirm button
             [
                 { text: `✅ Deposit ${currentAmount} Token (${formatter.formatRupiah(totalPrice)})`, callback_data: `dep_confirm_${userId}_${currentAmount}` }
             ],
-            // Row 4: Cancel
             [
                 { text: '❌ Batal', callback_data: `dep_cancel_${userId}` }
             ]
@@ -1443,14 +1454,12 @@ Pilih fitur yang ingin digunakan:
         };
 
         if (editMessageId) {
-            // Edit existing message
             await bot.editMessageText(text, {
                 chat_id: chatId,
                 message_id: editMessageId,
                 ...options
             }).catch(() => {});
         } else {
-            // Send new message
             await bot.sendMessage(chatId, text, {
                 ...options,
                 reply_to_message_id: replyToMsgId
@@ -2240,178 +2249,6 @@ Pilih fitur yang ingin digunakan:
         }
     },
 
-    /**
-     * ═══════════════════════════════════════════
-     * Command: /bugwa <target> <mode>
-     * BugWA - WhatsApp Bug/Crash Sender
-     * Mode: crashinvis, invisdelay
-     * ═══════════════════════════════════════════
-     */
-    async bugwa(bot, msg, args) {
-        const userId = String(msg.from.id);
-        const validModes = bugwaService.getValidModes();
-        const modeList = Object.entries(validModes).map(([k, v]) => `• <b>${k}</b> - ${v.name}`).join('\n');
-
-        if (args.length < 2) {
-            await bot.sendMessage(msg.chat.id,
-                `❌ <b>Format Salah</b>\n\n📋 <b>Cara Penggunaan:</b>\n<code>/bugwa &lt;target&gt; &lt;mode&gt;</code>\n\n✅ <b>Mode:</b>\n${modeList}\n\n📱 <b>Contoh:</b>\n<code>/bugwa 081234567890 crashinvis</code>\n<code>/bugwa 6281234567890 crashios</code>\n<code>/bugwa 6281234567890 invisdelay</code>\n\n📋 <b>Sub-command:</b>\n<code>/bugwa stop &lt;target&gt; &lt;mode&gt;</code> - Hentikan attack\n<code>/bugwa &lt;nomor&gt; status</code> - Lihat attack aktif\n<code>/bugwa status</code> - Lihat semua attack aktif`,
-                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-            );
-            return;
-        }
-
-        // Sub-command: stop
-        if (args[0].toLowerCase() === 'stop') {
-            if (args.length < 3) {
-                await bot.sendMessage(msg.chat.id,
-                    `❌ <b>Format:</b> <code>/bugwa stop &lt;target&gt; &lt;mode&gt;</code>\nContoh: <code>/bugwa stop 081234567890 crashinvis</code>`,
-                    { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-                );
-                return;
-            }
-            
-            const stopResult = await bugwaService.stopAttack(args[1], args[2], userId);
-            if (stopResult.success) {
-                await bot.sendMessage(msg.chat.id,
-                    `✅ <b>Attack Dihentikan</b>\n\n📞 Target: <b>${stopResult.target}</b>\n⚙️ Mode: <b>${stopResult.mode}</b>`,
-                    { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-                );
-            } else {
-                await bot.sendMessage(msg.chat.id,
-                    `❌ <b>Gagal Stop</b>\n\n${stopResult.error}`,
-                    { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-                );
-            }
-            return;
-        }
-
-        // Sub-command: status
-        if (args[0].toLowerCase() === 'status') {
-            const statusResult = await bugwaService.getActiveAttacks(userId);
-            
-            if (!statusResult.success) {
-                await bot.sendMessage(msg.chat.id,
-                    `❌ <b>Gagal Cek Status</b>\n\n${statusResult.error}`,
-                    { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-                );
-                return;
-            }
-
-            if (statusResult.total === 0) {
-                await bot.sendMessage(msg.chat.id,
-                    `📊 <b>ATTACK STATUS</b>\n\n📭 Tidak ada attack aktif`,
-                    { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-                );
-                return;
-            }
-
-            let statusText = `📊 <b>ATTACK AKTIF</b> (${statusResult.total})\n────────────────\n\n`;
-            statusResult.attacks.forEach((atk, i) => {
-                statusText += `${i + 1}. 📞 <b>${atk.target}</b>\n`;
-                statusText += `   ⚙️ Mode: <b>${atk.mode}</b>\n`;
-                statusText += `   📤 Sent: <b>${atk.count}x</b> (${atk.senderCount} sender)\n`;
-                statusText += `────────────────\n`;
-            });
-            statusText += `\n💡 <i>Stop: /bugwa stop &lt;target&gt; &lt;mode&gt;</i>`;
-
-            await bot.sendMessage(msg.chat.id, statusText, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
-            return;
-        }
-
-        // Main attack
-        const target = args[0];
-        const mode = args[1].toLowerCase();
-
-        if (!validModes[mode]) {
-            await bot.sendMessage(msg.chat.id,
-                `❌ <b>Mode tidak valid</b>\n\n✅ <b>Mode tersedia:</b>\n${modeList}`,
-                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-            );
-            return;
-        }
-
-        // Cek user dan saldo
-        const user = db.getOrCreateUser(userId, msg.from.first_name);
-        const settings = db.getAllSettings();
-
-        // Cek Maintenance
-        if (settings.mt_bugwa === 'true') {
-            await bot.sendMessage(msg.chat.id,
-                '⚠️ <b>MAINTENANCE</b>\n\nFitur <b>BUGWA</b> sedang dalam perbaikan sementara.\nSilakan coba lagi nanti.',
-                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-            );
-            return;
-        }
-
-        const bugwaCost = parseInt(settings.bugwa_cost) || config.bugwaCost || 3;
-
-        if (user.token_balance < bugwaCost) {
-            await bot.sendMessage(msg.chat.id,
-                `❌ <b>Saldo Tidak Cukup</b>\n\n🪙 Saldo: <b>${user.token_balance} token</b>\n💰 Biaya: <b>${bugwaCost} token</b>\n\nKetik /deposit untuk top up`,
-                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-            );
-            return;
-        }
-
-        // Generate request ID
-        const requestId = db.createApiRequest(userId, 'bugwa', `${target} ${mode}`, 'bugwa', bugwaCost);
-
-        // Processing message
-        const processingMsg = await bot.sendMessage(msg.chat.id,
-            `⏳ <b>Sedang Proses...</b>\n\n${validModes[mode].icon} Mode: <b>${validModes[mode].name}</b>\n📞 Target: <b>${target}</b>\n🆔 ID: <code>${requestId}</code>\n<i>Mengirim bug...</i>`,
-            { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-        );
-
-        // Potong token
-        db.deductTokens(userId, bugwaCost);
-
-        // Send attack
-        const result = await bugwaService.attack(target, mode, userId);
-
-        const updatedUser = db.getUser(userId);
-        const remainingToken = updatedUser?.token_balance || 0;
-
-        if (!result.success) {
-            if (result.refund) {
-                db.refundTokens(userId, bugwaCost);
-            }
-            db.updateApiRequest(requestId, 'failed', null, null, result.error);
-            db.createTransaction(userId, 'check', bugwaCost, `BugWA gagal`, `${target} ${mode}`, 'failed');
-
-            await bot.editMessageText(
-                `❌ <b>Gagal</b>\n\n${result.error}\n\n${result.refund ? `🪙 Token dikembalikan: <b>${bugwaCost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`,
-                { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
-            );
-            return;
-        }
-
-        // Berhasil
-        db.updateApiRequest(requestId, 'success', result.data.formattedTarget, null, null);
-        db.createTransaction(userId, 'check', bugwaCost, `BugWA ${result.data.modeName} ke ${result.data.formattedTarget}`, `${target} ${mode}`, 'success');
-
-        const successText = `${result.data.modeIcon} <b>BUGWA TERKIRIM</b>
-────────────────
-
-📞 <b>TARGET</b>
-Nomor: <b>${result.data.formattedTarget}</b>
-Negara: ${result.data.country}
-────────────────
-
-⚙️ <b>DETAIL</b>
-Mode: <b>${result.data.modeName}</b>
-Sender: ${result.data.senderCount} bot(s)
-────────────────
-
-🆔 ID: <code>${requestId}</code>
-🪙 Token: <b>-${bugwaCost}</b> (Sisa: <b>${remainingToken}</b>)
-
-💡 <i>Cek status: /bugwa status</i>
-🛑 <i>Stop: /bugwa stop ${target} ${mode}</i>`;
-
-        await bot.editMessageText(successText, 
-            { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
-        );
-    }
 };
 
 module.exports = userCommands;
