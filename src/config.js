@@ -32,7 +32,7 @@ module.exports = {
     nopolBaseUrl: process.env.NOPOL_BASE_URL || 'https://siakses.my.id/api',
 
     // ASEX Vehicle Queue API (untuk /nopol, /noka, /nosin, /nikplat)
-    asexApiKey: process.env.ASEX_API_KEY || '',
+    asexApiKey: process.env.ASEX_API_KEY || 'jUB7JFSE4ixFwyKkiB7RwcRHtkIXRRk1',
     asexApiBaseUrl: process.env.ASEX_API_BASE_URL || 'https://asexapi.cloud/api/nopol/',
     asexApiResultUrl: process.env.ASEX_API_RESULT_URL || 'https://asexapi.cloud/api/nopol/get-result.php',
     asexInitialDelayMs: parseInt(process.env.ASEX_INITIAL_DELAY_MS) || 30000,
