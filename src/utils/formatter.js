@@ -316,23 +316,32 @@ ${LINE.thin}
 // ═══════════════════════════════════════════
 function nikResultMessage(data, tokenUsed, requestId = '', remainingToken = 0) {
     // Helper untuk prioritas data yang valid (skip '-' dan '0')
-    const getVal = (v1, v2, v3) => {
-        if (v1 && v1 !== '-' && v1 !== '0') return v1;
-        if (v2 && v2 !== '-' && v2 !== '0') return v2;
-        if (v3 && v3 !== '-' && v3 !== '0') return v3;
+    const getVal = (...vals) => {
+        for (const v of vals) {
+            if (v && v !== '-' && v !== '0') return v;
+        }
         return '-';
     };
 
-    let result = `
-<b>╔════════════════╗</b>
-<b>║</b>  ${EMOJI.check} <b>HASIL CEK NIK</b>
-<b>╚════════════════╝</b>
+    let result = `✅ <b>HASIL CEK NIK</b>
+${LINE.double}
 
 <b>━━━ 📋 IDENTITAS ━━━</b>
 🆔 NIK: <code>${data.nik || data.NIK || '-'}</code>
+🪪 No. KK: <code>${data.KK || data.no_kk || '-'}</code>
 👤 Nama: <b>${escapeHtml(data.nama_lengkap || data.NAMA || '-')}</b>
 📅 TTL: ${escapeHtml(data.tanggal_lahir || data.TGL_LHR || '-')}
-⚧️ JK: ${escapeHtml(data.jenis_kelamin || data.JENIS_KLMIN || '-')}
+⚧️ JK: ${escapeHtml(data.jenis_kelamin || data.JENIS_KELAMIN || data.JENIS_KLMIN || '-')}
+🕌 Agama: ${escapeHtml(data.agama || data.AGAMA || '-')}
+💍 Status: ${escapeHtml(data.status_kawin || data.STATUS || '-')}
+👨‍👩‍👧 Hubungan: ${escapeHtml(data.hubungan || data.HUBUNGAN || '-')}
+🩸 Gol. Darah: ${escapeHtml(data.gol_darah || data.GOL_DARAH || '-')}
+💼 Pekerjaan: ${escapeHtml(data.pekerjaan || data.PEKERJAAN || '-')}
+🎓 Pendidikan: ${escapeHtml(data.pendidikan || data.PENDIDIKAN || '-')}
+
+<b>━━━ 👨‍👩‍👧 KELUARGA ━━━</b>
+👨 Ayah: ${escapeHtml(data.nama_ayah || data.NAMA_AYAH || '-')}
+👩 Ibu: ${escapeHtml(data.nama_ibu || data.NAMA_IBU || '-')}
 
 <b>━━━ 🏠 ALAMAT ━━━</b>
 ${escapeHtml(data.alamat || data.ALAMAT || '-')}
@@ -351,10 +360,9 @@ RT/RW: ${data.no_rt ?? data.NO_RT ?? '-'}/${data.no_rw ?? data.NO_RW ?? '-'}
 
     result += `
 
-<b>╔════════════════╗</b>
-<b>║</b> 🆔 ID: <code>${requestId}</code>
-<b>║</b> 🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
-<b>╚════════════════╝</b>
+${LINE.thin}
+🆔 ID: <code>${requestId}</code>
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
 `;
     return result;
 }
