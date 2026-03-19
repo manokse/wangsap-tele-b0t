@@ -31,14 +31,9 @@ module.exports = {
     nopolApiKey: process.env.NOPOL_API_KEY || '',
     nopolBaseUrl: process.env.NOPOL_BASE_URL || 'https://siakses.my.id/api',
 
-    // ASEX Vehicle Queue API (untuk /nopol, /noka, /nosin, /nikplat)
+    // ASEX Vehicle API (untuk /nopol, /noka, /nosin, /nikplat) - Direct Response
     asexApiKey: process.env.ASEX_API_KEY || 'jUB7JFSE4ixFwyKkiB7RwcRHtkIXRRk1',
-    asexApiBaseUrl: process.env.ASEX_API_BASE_URL || 'https://asexapi.cloud/api/nopol/',
-    asexApiResultUrl: process.env.ASEX_API_RESULT_URL || 'https://asexapi.cloud/api/nopol/get-result.php',
-    asexInitialDelayMs: parseInt(process.env.ASEX_INITIAL_DELAY_MS) || 30000,
-    asexPollIntervalMs: parseInt(process.env.ASEX_POLL_INTERVAL_MS) || 15000,
-    asexPollTimeoutMs: parseInt(process.env.ASEX_POLL_TIMEOUT_MS) || 600000,
-    
+
     // TerbangBebas API (untuk /nopol, /noka, /nosin, /nikvehicle)
     terbangbebasApiKey: process.env.TERBANGBEBAS_API_KEY || 'bb1939cc65b3f5dc732c8f94ce14bc92',
     

@@ -2,6 +2,16 @@ const axios = require('axios');
 const config = require('../config');
 const db = require('../database');
 
+/**
+ * ASEX Vehicle API Service - Updated
+ * Direct response API (no callback/polling)
+ * 
+ * Endpoints:
+ * - NOPOL:  https://asexapi.cloud/api/nopol/?api_key=XXX&plate=XXX
+ * - NOKA:   https://asexapi.cloud/api/nopol/?api_key=XXX&no_rangka=XXX
+ * - NOSIN:  https://asexapi.cloud/api/nopol/?api_key=XXX&no_mesin=XXX
+ * - NIKPLAT: https://asexapi.cloud/api/nopol/?api_key=XXX&no_ktp=XXX
+ */
 class AsexVehicleService {
     constructor() {
         this.activePolls = new Map();
@@ -13,14 +23,10 @@ class AsexVehicleService {
     }
 
     getBaseUrl() {
-        return config.asexApiBaseUrl;
+        return 'https://asexapi.cloud/api/nopol/';
     }
 
-    getResultUrl() {
-        return config.asexApiResultUrl;
-    }
-
-    getSubmitParam(type) {
+    getQueryParam(type) {
         return {
             nopol: 'plate',
             noka: 'no_rangka',
@@ -29,8 +35,12 @@ class AsexVehicleService {
         }[type];
     }
 
-    async submitLookup(type, value) {
-        const paramName = this.getSubmitParam(type);
+    /**
+     * Direct lookup - no callback/polling
+     * Note: API takes ~30 seconds to respond
+     */
+    async lookup(type, value) {
+        const paramName = this.getQueryParam(type);
         if (!paramName) {
             return {
                 success: false,
@@ -40,12 +50,12 @@ class AsexVehicleService {
         }
 
         try {
-            const response = await axios.get(this.getBaseUrl(), {
-                timeout: 30000,
-                params: {
-                    api_key: this.getApiKey(),
-                    [paramName]: value
-                },
+            const url = `${this.getBaseUrl()}?api_key=${this.getApiKey()}&${paramName}=${encodeURIComponent(value)}`;
+            
+            console.log(`[ASEX Vehicle] ${type.toUpperCase()}: ${value}`);
+            
+            const response = await axios.get(url, {
+                timeout: 90000, // 90 seconds timeout (API takes ~30s)
                 headers: {
                     'Accept': 'application/json',
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -53,148 +63,44 @@ class AsexVehicleService {
             });
 
             const data = response.data || {};
-            if (data.status && (data.result || data.data)) {
-                return {
-                    success: true,
-                    immediateResult: data.result || data.data,
-                    source: data.source || 'direct',
-                    message: data.message || 'Data kendaraan langsung tersedia',
-                    refund: false
-                };
-            }
 
-            const requestCode = data.request_id || data.request_code || data.code || null;
-            if (!data.status || !requestCode) {
-                console.warn('[ASEX] Invalid submit payload:', {
-                    type,
-                    value,
-                    status: data.status,
-                    hasRequestId: Boolean(data.request_id),
-                    hasRequestCode: Boolean(data.request_code),
-                    message: data.message || null
-                });
+            // Check if status is false (data not found)
+            if (data.status === false) {
                 return {
                     success: false,
-                    error: data.message || 'Request kendaraan gagal diproses (request_code tidak ditemukan)',
+                    error: data.message || 'Data kendaraan tidak ditemukan',
                     refund: true
                 };
             }
 
-            return {
-                success: true,
-                requestCode,
-                source: data.source || 'queue',
-                message: data.message || 'Request queued, processing...',
-                refund: false
-            };
-        } catch (error) {
-            return this.handleError(error);
-        }
-    }
-
-    async fetchResult(requestCode) {
-        try {
-            const response = await axios.get(this.getResultUrl(), {
-                timeout: 30000,
-                params: {
-                    api_key: this.getApiKey(),
-                    request_code: requestCode
-                },
-                headers: {
-                    'Accept': 'application/json',
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
-                }
-            });
-
-            const data = response.data || {};
-            if (!data.status) {
-                return {
-                    success: false,
-                    state: 'failed',
-                    error: data.message || 'Gagal mengambil hasil kendaraan',
-                    refund: true
-                };
-            }
-
-            if (data.state === 'done' && data.result) {
+            // Check if status is true and data exists
+            if (data.status === true && data.data) {
                 return {
                     success: true,
-                    state: 'done',
-                    result: data.result,
-                    updatedAt: data.updated_at || null,
+                    data: data.data,
+                    source: 'asexapi',
                     refund: false
                 };
             }
 
-            if (data.state === 'pending') {
-                return {
-                    success: true,
-                    state: 'pending',
-                    message: data.message || 'Request still processing',
-                    refund: false
-                };
-            }
-
-            console.warn('[ASEX] Unknown result payload:', {
-                requestCode,
-                status: data.status,
-                state: data.state || null,
-                hasResult: Boolean(data.result),
-                message: data.message || null
-            });
-
+            // Fallback for unexpected response
+            console.warn('[ASEX] Unexpected response:', data);
             return {
                 success: false,
-                state: data.state || 'failed',
-                error: data.message || 'Request kendaraan gagal',
+                error: 'Format response tidak valid',
                 refund: true
             };
+
         } catch (error) {
             return this.handleError(error);
         }
     }
 
-    async waitForResult(requestCode) {
-        await this.delay(config.asexInitialDelayMs);
-
-        const startedAt = Date.now();
-        while ((Date.now() - startedAt) < config.asexPollTimeoutMs) {
-            const result = await this.fetchResult(requestCode);
-
-            if (!result.success) {
-                return result;
-            }
-
-            if (result.state === 'done') {
-                return result;
-            }
-
-            await this.delay(config.asexPollIntervalMs + Math.floor(Math.random() * 3000));
-        }
-
-        return {
-            success: false,
-            state: 'timeout',
-            error: 'Request kendaraan timeout, silakan coba lagi nanti',
-            refund: true
-        };
-    }
-
-    startPolling(requestCode, poller) {
-        if (this.activePolls.has(requestCode)) {
-            return this.activePolls.get(requestCode);
-        }
-
-        const promise = (async () => {
-            try {
-                return await poller();
-            } finally {
-                this.activePolls.delete(requestCode);
-            }
-        })();
-
-        this.activePolls.set(requestCode, promise);
-        return promise;
+    /**
+     * Alias for lookup() for backward compatibility
+     */
+    async submitLookup(type, value) {
+        return this.lookup(type, value);
     }
 
     handleError(error) {

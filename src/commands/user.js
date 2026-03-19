@@ -1062,6 +1062,9 @@ Pilih fitur yang ingin digunakan:
         }
     },
 
+    /**
+     * Vehicle Lookup (Nopol/Noka/Nosin/NikPlat) - Updated for Direct API
+     */
     async _vehicleLookup(bot, msg, args, commandName, costKey, title, example) {
         const userId = msg.from.id;
         const firstName = msg.from.first_name || 'User';
@@ -1122,6 +1125,7 @@ Pilih fitur yang ingin digunakan:
             });
         };
 
+        // Check cache first
         const cacheMaxAgeDays = 9999 / 24;
         const cached = db.getCachedApiResponse(commandName, query, cacheMaxAgeDays);
         const cachedData = cached?.response_data;
@@ -1140,67 +1144,41 @@ Pilih fitur yang ingin digunakan:
 
         const requestId = db.createApiRequest(userId, commandName, query, 'asex_vehicle', lookupCost);
         const processingMsg = await bot.sendMessage(msg.chat.id,
-            `⏳ <b>Sedang Proses...</b>\n\n🔍 ${formatter.escapeHtml(title)}: <b>${formatter.escapeHtml(query)}</b>\n🆔 ID: <code>${requestId}</code>\n<i>Masuk antrian, hasil bisa 2 menit atau lebih</i>`,
+            `⏳ <b>Sedang Proses...</b>\n\n🔍 ${formatter.escapeHtml(title)}: <b>${formatter.escapeHtml(query)}</b>\n🆔 ID: <code>${requestId}</code>\n\n<i>⚠️ Proses ini membutuhkan waktu sekitar 30-60 detik.\nMohon tunggu sebentar...</i>`,
             { parse_mode: 'HTML' }
         );
 
         db.deductTokens(userId, lookupCost);
 
-        const submit = await asexVehicleService.submitLookup(commandName, query);
-        if (!submit.success) {
-            if (submit.refund) db.refundTokens(userId, lookupCost);
-            db.updateApiRequest(requestId, 'failed', null, null, submit.error);
+        // Use API service checkNopol which includes ASEX Vehicle
+        const result = await apiService.checkNopol(query);
+
+        const updatedUser = db.getUser(userId);
+        const remainingToken = updatedUser?.token_balance || 0;
+
+        if (!result.success) {
+            if (result.refund) {
+                db.refundTokens(userId, lookupCost);
+            }
+            db.updateApiRequest(requestId, 'failed', null, null, result.error);
             db.createTransaction(userId, 'check', lookupCost, `${title} gagal`, query, 'failed');
+
             await bot.editMessageText(
-                `❌ <b>Gagal</b>\n\n${formatter.escapeHtml(submit.error)}\n\n${submit.refund ? `🪙 Token dikembalikan: <b>${lookupCost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`,
+                `❌ <b>Gagal</b>\n\n${formatter.escapeHtml(result.error)}\n\n${result.refund ? `🪙 Token dikembalikan: <b>${lookupCost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`,
                 { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
             );
             return;
         }
 
-        if (submit.immediateResult) {
-            db.updateApiRequest(requestId, 'success', `${submit.immediateResult?.nama_pemilik || 'Data kendaraan'}`, null, null, submit.immediateResult);
-            db.createTransaction(userId, 'check', lookupCost, `${title} berhasil`, query, 'success');
+        db.updateApiRequest(requestId, 'success', `${result.data?.nama_pemilik || 'Data kendaraan'}`, null, null, result.data);
+        db.createTransaction(userId, 'check', lookupCost, `${title} berhasil`, query, 'success');
 
-            const latestUser = db.getUser(userId);
-            const latestRemaining = latestUser?.token_balance || 0;
-            const text = formatter.nopolResultMessage(submit.immediateResult, lookupCost, requestId, latestRemaining);
-
-            await bot.editMessageText(text, {
-                chat_id: msg.chat.id,
-                message_id: processingMsg.message_id,
-                parse_mode: 'HTML'
-            });
-            return;
-        }
-
-        await bot.editMessageText(
-            `⏳ <b>Request Masuk Antrian</b>\n\n🔍 ${formatter.escapeHtml(title)}: <b>${formatter.escapeHtml(query)}</b>\n🆔 ID: <code>${requestId}</code>\n📮 Request Code: <code>${submit.requestCode}</code>\n\n<i>Bot akan mengirim hasil otomatis setelah selesai.</i>`,
-            { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
-        );
-
-        asexVehicleService.startPolling(submit.requestCode, async () => {
-            const result = await asexVehicleService.waitForResult(submit.requestCode);
-
-            if (!result.success) {
-                if (result.refund) db.refundTokens(userId, lookupCost);
-                db.updateApiRequest(requestId, 'failed', null, null, result.error);
-                db.createTransaction(userId, 'check', lookupCost, `${title} gagal`, query, 'failed');
-                await bot.sendMessage(msg.chat.id,
-                    `❌ <b>${formatter.escapeHtml(title.toUpperCase())} GAGAL</b>\n\n${formatter.escapeHtml(result.error)}\n🆔 ID: <code>${requestId}</code>${result.refund ? `\n🪙 Token dikembalikan: <b>${lookupCost}</b>` : ''}`,
-                    { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
-                ).catch(() => {});
-                return;
-            }
-
-            db.updateApiRequest(requestId, 'success', `${result.result?.nama_pemilik || 'Data kendaraan'}`, null, null, result.result);
-            db.createTransaction(userId, 'check', lookupCost, `${title} berhasil`, query, 'success');
-
-            const latestUser = db.getUser(userId);
-            const latestRemaining = latestUser?.token_balance || 0;
-            const text = formatter.nopolResultMessage(result.result, lookupCost, requestId, latestRemaining);
-            await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', reply_to_message_id: msg.message_id }).catch(() => {});
-        }).catch(() => {});
+        const text = formatter.nopolResultMessage(result.data, lookupCost, requestId, remainingToken);
+        await bot.editMessageText(text, {
+            chat_id: msg.chat.id,
+            message_id: processingMsg.message_id,
+            parse_mode: 'HTML'
+        });
     },
 
     async nopol(bot, msg, args) {

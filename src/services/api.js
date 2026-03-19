@@ -665,8 +665,8 @@ class APIService {
         try {
             const apiKey = this.getApiKey('nopol');
             const url = `${this.nopolBaseUrl}/check-nopol`;
-            
-            const response = await axios.post(url, 
+
+            const response = await axios.post(url,
                 `api_key=${apiKey}&nopol=${encodeURIComponent(query)}`,
                 {
                     timeout: this.defaultTimeout,
@@ -706,26 +706,141 @@ class APIService {
     }
 
     /**
+     * ═══════════════════════════════════════════
+     * ASEX VEHICLE API (Updated - Direct Response)
+     * ═══════════════════════════════════════════
+     * 
+     * Endpoints:
+     * - NOPOL:  https://asexapi.cloud/api/nopol/?api_key=XXX&plate=XXX
+     * - NOKA:   https://asexapi.cloud/api/nopol/?api_key=XXX&no_rangka=XXX
+     * - NOSIN:  https://asexapi.cloud/api/nopol/?api_key=XXX&no_mesin=XXX
+     * - NIKPLAT: https://asexapi.cloud/api/nopol/?api_key=XXX&no_ktp=XXX
+     * 
+     * Response format:
+     * {
+     *   "status": true,
+     *   "data": {
+     *     "plate_number": "F-1331-GW",
+     *     "merk": "MERCEDES BENZ",
+     *     "model": "C 230 CLASIC MT",
+     *     "tahun_pembuatan": "1998",
+     *     "warna": "HITAM METALIK",
+     *     "no_bpkb": "R00702869",
+     *     "no_mesin": "11197460005377",
+     *     "no_rangka": "MHL2020230L032555",
+     *     "nama_pemilik": "H.AGUNG SANDA",
+     *     "no_ktp": "3201381611850001",
+     *     "pekerjaan": "KARYAWAN SWASTA",
+     *     "alamat": "...",
+     *     ...
+     *   }
+     * }
+     */
+
+    /**
+     * Detect query type for ASEX Vehicle API
+     */
+    detectVehicleQueryType(query) {
+        // NOPOL format: [Huruf 1-2][Angka 1-4][Huruf 0-3]
+        const nopolRegex = /^[A-Z]{1,2}[0-9]{1,4}[A-Z]{0,3}$/;
+        if (nopolRegex.test(query) && query.length >= 2 && query.length <= 9) {
+            return 'nopol';
+        }
+        // NOKA (Nomor Rangka): 15-17 alphanumeric
+        if (/^[A-Z0-9]{15,17}$/.test(query)) {
+            return 'noka';
+        }
+        // NOSIN (Nomor Mesin): 10-16 alphanumeric
+        if (/^[A-Z0-9]{10,16}$/.test(query)) {
+            return 'nosin';
+        }
+        // NIK (Nomor KTP): 16 digits
+        if (/^[0-9]{16}$/.test(query)) {
+            return 'nikplat';
+        }
+        return null;
+    }
+
+    /**
+     * Check vehicle using ASEX Vehicle API
+     * Note: Takes ~30 seconds to respond
+     */
+    async checkVehicleAsex(type, value) {
+        try {
+            const asexVehicleService = require('./asexVehicle');
+            return await asexVehicleService.lookup(type, value);
+        } catch (error) {
+            console.error('ASEX Vehicle API Error:', error.message);
+            return {
+                success: false,
+                error: error.message,
+                refund: true
+            };
+        }
+    }
+
+    /**
      * Main checkNopol function dengan logic:
-     * - NOPOL format: terbangbebas -> fallback siakses
-     * - NOKA/NOSIN/NIK: langsung siakses
+     * - NOPOL format: terbangbebas -> fallback siakses -> fallback ASEX (30s)
+     * - NOKA/NOSIN/NIK: ASEX Vehicle API (30s) -> fallback siakses
      */
     async checkNopol(query) {
         try {
             return await this.withRetry(async () => {
-                if (this.isNopolFormat(query)) {
+                const queryType = this.detectVehicleQueryType(query.toUpperCase());
+
+                if (queryType === 'nopol') {
+                    // NOPOL: TerbangBebas -> Siakses -> ASEX
                     console.log(`🚗 Query "${query}" detected as NOPOL format, trying TerbangBebas first...`);
-                    
+
                     const tbResult = await this.checkNopolTerbangBebas(query);
                     if (tbResult.success) {
                         console.log(`✅ TerbangBebas success for ${query}`);
                         return tbResult;
                     }
-                    
+
                     console.log(`⚠️ TerbangBebas failed, fallback to Siakses for ${query}`);
+                    const siakesResult = await this.checkNopolSiakses(query);
+                    if (siakesResult.success) {
+                        console.log(`✅ Siakses success for ${query}`);
+                        return siakesResult;
+                    }
+
+                    console.log(`⚠️ Siakses failed, fallback to ASEX Vehicle for ${query} (takes ~30s)`);
+                    return await this.checkVehicleAsex('nopol', query.toUpperCase());
+
+                } else if (queryType === 'noka') {
+                    // NOKA: ASEX -> Siakses
+                    console.log(`🔧 Query "${query}" detected as NOKA, trying ASEX Vehicle first... (takes ~30s)`);
+                    const asexResult = await this.checkVehicleAsex('noka', query);
+                    if (asexResult.success) {
+                        console.log(`✅ ASEX Vehicle success for ${query}`);
+                        return asexResult;
+                    }
+
+                    console.log(`⚠️ ASEX Vehicle failed, fallback to Siakses for ${query}`);
                     return await this.checkNopolSiakses(query);
+
+                } else if (queryType === 'nosin') {
+                    // NOSIN: ASEX -> Siakses
+                    console.log(`🔧 Query "${query}" detected as NOSIN, trying ASEX Vehicle first... (takes ~30s)`);
+                    const asexResult = await this.checkVehicleAsex('nosin', query);
+                    if (asexResult.success) {
+                        console.log(`✅ ASEX Vehicle success for ${query}`);
+                        return asexResult;
+                    }
+
+                    console.log(`⚠️ ASEX Vehicle failed, fallback to Siakses for ${query}`);
+                    return await this.checkNopolSiakses(query);
+
+                } else if (queryType === 'nikplat') {
+                    // NIKPLAT: ASEX only
+                    console.log(`🪪 Query "${query}" detected as NIKPLAT, using ASEX Vehicle... (takes ~30s)`);
+                    return await this.checkVehicleAsex('nikplat', query);
+
                 } else {
-                    console.log(`🔧 Query "${query}" detected as NOKA/NOSIN/NIK, using Siakses directly...`);
+                    // Unknown format: try Siakses
+                    console.log(`❓ Query "${query}" format unknown, trying Siakses...`);
                     return await this.checkNopolSiakses(query);
                 }
             });
