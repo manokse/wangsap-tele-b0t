@@ -53,40 +53,45 @@ class AsexVehicleService {
         // Create normalized copy
         const normalized = { ...data };
 
-        // Normalize plate number - ASEX often returns plate_number directly
-        normalized.plate_number = data.plate_number || data.plat_nomor || data.no_polisi || data.nomor_polisi;
+        // Helper to check if value is meaningful (not null, undefined, empty, or "0" or "-")
+        const hasValue = (val) => val != null && val !== '' && val !== '0' && val !== '-';
+
+        // Normalize plate number - ASEX returns parts: plate_region, plate_number, plate_series
+        const region = data.plate_region || data.wilayah || '';
+        const number = data.plate_number || data.nopol || '';
+        const series = data.plate_series || data.seri || '';
         
-        if (!normalized.plate_number || normalized.plate_number === '-') {
-            const wilayah = data.wilayah || data.SeriWilayah || '';
-            const nopol = data.nopol || data.Nopol || '';
-            const seri = data.seri || data.Seri || '';
-            normalized.plate_number = [wilayah, nopol, seri].filter(Boolean).join(' ').trim() || '-';
+        if (hasValue(region) || hasValue(number) || hasValue(series)) {
+            normalized.plate_number = [region, number, series].filter(hasValue).join(' ').trim() || '-';
+        } else {
+            normalized.plate_number = data.plat_nomor || data.no_polisi || '-';
         }
 
-        // Map field variations to standard names
-        normalized.merk = data.merk || data.Merk || data.brand || data.Brand || data.merek || '-';
-        normalized.type_model = data.type_model || data.Type || data.type || data.model || data.Model || data.tipe || '-';
-        normalized.model = data.model || data.Model || data.model_kendaraan || '-';
-        normalized.tahun_pembuatan = data.tahun_pembuatan || data.TahunPembuatan || data.tahun || data.Tahun || data.thn_buat || '-';
-        normalized.warna = data.warna || data.Warna || data.color || data.Color || data.warna_kbli || '-';
-        normalized.isi_silinder = data.isi_silinder || data.IsiCylinder || data.cc || data.CC || data.isi_silinder_cc || '-';
-        normalized.jumlah_roda = data.jumlah_roda || data.JumlahRoda || data.jml_roda || '-';
+        // Map field variations based on actual API response
+        normalized.merk = hasValue(data.brand) ? data.brand : (hasValue(data.merk) ? data.merk : '-');
+        normalized.type_model = hasValue(data.vehicle_type) ? data.vehicle_type : (hasValue(data.Type) ? data.Type : (hasValue(data.type) ? data.type : '-'));
+        normalized.model = hasValue(data.model) ? data.model : (hasValue(data.Model) ? data.Model : '-');
+        normalized.tahun_pembuatan = hasValue(data.manufacture_year) ? data.manufacture_year : (hasValue(data.tahun) ? data.tahun : '-');
+        normalized.warna = hasValue(data.color) ? data.color : (hasValue(data.warna) ? data.warna : '-');
+        normalized.isi_silinder = hasValue(data.engine_capacity_cc) ? data.engine_capacity_cc : (hasValue(data.cc) ? data.cc : '-');
+        normalized.jumlah_roda = hasValue(data.wheel_count) ? data.wheel_count : (hasValue(data.jml_roda) ? data.jml_roda : '-');
 
-        normalized.no_rangka = data.no_rangka || data.NoRangka || data.nomor_rangka || '-';
-        normalized.no_mesin = data.no_mesin || data.NoMesin || data.nomor_mesin || '-';
-        normalized.no_bpkb = data.no_bpkb || data.NoBPKB || data.nomor_bpkb || '-';
-        normalized.no_stnk = data.no_stnk || data.NoSTNK || data.nomor_stnk || '-';
-        normalized.no_faktur = data.no_faktur || data.NoFaktur || '-';
-        normalized.tanggal_daftar = data.tanggal_daftar || data.TanggalDaftar || data.tgl_daftar || '-';
+        normalized.no_rangka = hasValue(data.chassis_number) ? data.chassis_number : (hasValue(data.no_rangka) ? data.no_rangka : '-');
+        normalized.no_mesin = hasValue(data.engine_number) ? data.engine_number : (hasValue(data.no_mesin) ? data.no_mesin : '-');
+        normalized.no_bpkb = hasValue(data.bpkb_number) ? data.bpkb_number : (hasValue(data.no_bpkb) ? data.no_bpkb : '-');
+        normalized.no_stnk = hasValue(data.stnk_number) ? data.stnk_number : (hasValue(data.no_stnk) ? data.no_stnk : '-');
+        normalized.no_faktur = hasValue(data.invoice_number) && data.invoice_number !== '0' ? data.invoice_number : '-';
+        normalized.tanggal_daftar = hasValue(data.registration_date) ? data.registration_date : (hasValue(data.tgl_daftar) ? data.tgl_daftar : '-');
 
-        normalized.nama_pemilik = data.nama_pemilik || data.NamaPemilik || data.nama || data.Nama || '-';
-        normalized.no_ktp = data.no_ktp || data.NoKTP || data.nik || data.NIK || data.no_ktp_pemilik || '-';
-        normalized.no_kk = data.no_kk || data.NoKK || '-';
-        normalized.no_hp = data.no_hp || data.NoHP || data.hp || data.HP || '-';
-        normalized.pekerjaan = data.pekerjaan || data.Pekerjaan || '-';
-        normalized.alamat = data.alamat || data.Alamat || '-';
-        normalized.provinsi = data.provinsi || data.Provinsi || '-';
-        normalized.polda = data.polda || data.Polda || '-';
+        // Owner info - keep "-" as valid value for owner_name since it means "no name"
+        normalized.nama_pemilik = data.owner_name !== undefined && data.owner_name !== null ? data.owner_name : (hasValue(data.nama) ? data.nama : '-');
+        normalized.no_ktp = hasValue(data.nik) ? data.nik : (hasValue(data.no_ktp) ? data.no_ktp : '-');
+        normalized.no_kk = hasValue(data.kk_number) ? data.kk_number : '-';
+        normalized.no_hp = hasValue(data.phone_number) ? data.phone_number : '-';
+        normalized.pekerjaan = hasValue(data.owner_job) ? data.owner_job : '-';
+        normalized.alamat = hasValue(data.owner_address) ? data.owner_address : '-';
+        normalized.provinsi = hasValue(data.province_code) ? data.province_code : '-';
+        normalized.polda = hasValue(data.polda) ? data.polda : '-';
 
         return normalized;
     }

@@ -1114,15 +1114,28 @@ Pilih fitur yang ingin digunakan:
             return;
         }
 
+        /**
+         * Check if cached vehicle data is usable
+         * Stricter validation: must have complete plate number AND sufficient data fields
+         */
         const isUsableVehicleData = (data) => {
             if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
-            const values = Object.values(data);
-            if (values.length === 0) return false;
-            return values.some(v => {
-                if (v === null || v === undefined) return false;
-                const str = String(v).trim();
-                return str !== '' && str !== '-';
-            });
+            
+            // Must have plate number with proper format (letters + numbers)
+            const plate = data.plate_number || '';
+            const hasValidPlate = plate.length > 4 && plate !== '-' && /[A-Z]/.test(plate) && /[0-9]/.test(plate);
+            
+            // Count meaningful fields (not empty, not "-", not "0")
+            const meaningfulFields = [
+                'nama_pemilik', 'merk', 'type_model', 'tahun_pembuatan', 
+                'no_rangka', 'no_mesin', 'warna', 'chassis_number', 'engine_number'
+            ].filter(key => {
+                const val = data[key];
+                return val != null && val !== '-' && val !== '' && val !== '0';
+            }).length;
+            
+            // Require valid plate AND at least 3 meaningful fields
+            return hasValidPlate && meaningfulFields >= 3;
         };
 
         // Check cache first
