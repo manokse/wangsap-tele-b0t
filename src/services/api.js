@@ -780,70 +780,13 @@ class APIService {
     }
 
     /**
-     * Main checkNopol function dengan logic:
-     * - NOPOL format: terbangbebas -> fallback siakses -> fallback ASEX (30s)
-     * - NOKA/NOSIN/NIK: ASEX Vehicle API (30s) -> fallback siakses
+     * Main checkNopol function - Direct to ASEX Vehicle API
      */
     async checkNopol(query) {
         try {
-            return await this.withRetry(async () => {
-                const queryType = this.detectVehicleQueryType(query.toUpperCase());
-
-                if (queryType === 'nopol') {
-                    // NOPOL: TerbangBebas -> Siakses -> ASEX
-                    console.log(`🚗 Query "${query}" detected as NOPOL format, trying TerbangBebas first...`);
-
-                    const tbResult = await this.checkNopolTerbangBebas(query);
-                    if (tbResult.success) {
-                        console.log(`✅ TerbangBebas success for ${query}`);
-                        return tbResult;
-                    }
-
-                    console.log(`⚠️ TerbangBebas failed, fallback to Siakses for ${query}`);
-                    const siakesResult = await this.checkNopolSiakses(query);
-                    if (siakesResult.success) {
-                        console.log(`✅ Siakses success for ${query}`);
-                        return siakesResult;
-                    }
-
-                    console.log(`⚠️ Siakses failed, fallback to ASEX Vehicle for ${query} (takes ~30s)`);
-                    return await this.checkVehicleAsex('nopol', query.toUpperCase());
-
-                } else if (queryType === 'noka') {
-                    // NOKA: ASEX -> Siakses
-                    console.log(`🔧 Query "${query}" detected as NOKA, trying ASEX Vehicle first... (takes ~30s)`);
-                    const asexResult = await this.checkVehicleAsex('noka', query);
-                    if (asexResult.success) {
-                        console.log(`✅ ASEX Vehicle success for ${query}`);
-                        return asexResult;
-                    }
-
-                    console.log(`⚠️ ASEX Vehicle failed, fallback to Siakses for ${query}`);
-                    return await this.checkNopolSiakses(query);
-
-                } else if (queryType === 'nosin') {
-                    // NOSIN: ASEX -> Siakses
-                    console.log(`🔧 Query "${query}" detected as NOSIN, trying ASEX Vehicle first... (takes ~30s)`);
-                    const asexResult = await this.checkVehicleAsex('nosin', query);
-                    if (asexResult.success) {
-                        console.log(`✅ ASEX Vehicle success for ${query}`);
-                        return asexResult;
-                    }
-
-                    console.log(`⚠️ ASEX Vehicle failed, fallback to Siakses for ${query}`);
-                    return await this.checkNopolSiakses(query);
-
-                } else if (queryType === 'nikplat') {
-                    // NIKPLAT: ASEX only
-                    console.log(`🪪 Query "${query}" detected as NIKPLAT, using ASEX Vehicle... (takes ~30s)`);
-                    return await this.checkVehicleAsex('nikplat', query);
-
-                } else {
-                    // Unknown format: try Siakses
-                    console.log(`❓ Query "${query}" format unknown, trying Siakses...`);
-                    return await this.checkNopolSiakses(query);
-                }
-            });
+            const queryType = this.detectVehicleQueryType(query.toUpperCase()) || 'nopol';
+            console.log(`🚗 Direct vehicle lookup (${queryType}): ${query}`);
+            return await this.checkVehicleAsex(queryType, query.toUpperCase());
         } catch (error) {
             console.error('NOPOL API Error:', error.message);
             return this.handleError(error);
