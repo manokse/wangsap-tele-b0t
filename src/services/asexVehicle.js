@@ -53,32 +53,34 @@ class AsexVehicleService {
         // Create normalized copy
         const normalized = { ...data };
 
-        // Normalize plate number - combine wilayah, nopol, seri if available
-        if (!normalized.plate_number) {
+        // Normalize plate number - ASEX often returns plate_number directly
+        normalized.plate_number = data.plate_number || data.plat_nomor || data.no_polisi || data.nomor_polisi;
+        
+        if (!normalized.plate_number || normalized.plate_number === '-') {
             const wilayah = data.wilayah || data.SeriWilayah || '';
             const nopol = data.nopol || data.Nopol || '';
             const seri = data.seri || data.Seri || '';
-            normalized.plate_number = [wilayah, nopol, seri].filter(Boolean).join(' ').trim() || data.plat_nomor || '-';
+            normalized.plate_number = [wilayah, nopol, seri].filter(Boolean).join(' ').trim() || '-';
         }
 
         // Map field variations to standard names
-        normalized.merk = data.merk || data.Merk || data.brand || data.Brand || '-';
-        normalized.type_model = data.type_model || data.Type || data.model || data.Model || '-';
-        normalized.model = data.model || data.Model || '-';
-        normalized.tahun_pembuatan = data.tahun_pembuatan || data.TahunPembuatan || data.tahun || data.Tahun || '-';
-        normalized.warna = data.warna || data.Warna || data.color || data.Color || '-';
-        normalized.isi_silinder = data.isi_silinder || data.IsiCylinder || data.cc || data.CC || '-';
-        normalized.jumlah_roda = data.jumlah_roda || data.JumlahRoda || '-';
+        normalized.merk = data.merk || data.Merk || data.brand || data.Brand || data.merek || '-';
+        normalized.type_model = data.type_model || data.Type || data.type || data.model || data.Model || data.tipe || '-';
+        normalized.model = data.model || data.Model || data.model_kendaraan || '-';
+        normalized.tahun_pembuatan = data.tahun_pembuatan || data.TahunPembuatan || data.tahun || data.Tahun || data.thn_buat || '-';
+        normalized.warna = data.warna || data.Warna || data.color || data.Color || data.warna_kbli || '-';
+        normalized.isi_silinder = data.isi_silinder || data.IsiCylinder || data.cc || data.CC || data.isi_silinder_cc || '-';
+        normalized.jumlah_roda = data.jumlah_roda || data.JumlahRoda || data.jml_roda || '-';
 
-        normalized.no_rangka = data.no_rangka || data.NoRangka || '-';
-        normalized.no_mesin = data.no_mesin || data.NoMesin || '-';
-        normalized.no_bpkb = data.no_bpkb || data.NoBPKB || '-';
-        normalized.no_stnk = data.no_stnk || data.NoSTNK || '-';
+        normalized.no_rangka = data.no_rangka || data.NoRangka || data.nomor_rangka || '-';
+        normalized.no_mesin = data.no_mesin || data.NoMesin || data.nomor_mesin || '-';
+        normalized.no_bpkb = data.no_bpkb || data.NoBPKB || data.nomor_bpkb || '-';
+        normalized.no_stnk = data.no_stnk || data.NoSTNK || data.nomor_stnk || '-';
         normalized.no_faktur = data.no_faktur || data.NoFaktur || '-';
-        normalized.tanggal_daftar = data.tanggal_daftar || data.TanggalDaftar || '-';
+        normalized.tanggal_daftar = data.tanggal_daftar || data.TanggalDaftar || data.tgl_daftar || '-';
 
         normalized.nama_pemilik = data.nama_pemilik || data.NamaPemilik || data.nama || data.Nama || '-';
-        normalized.no_ktp = data.no_ktp || data.NoKTP || data.nik || data.NIK || '-';
+        normalized.no_ktp = data.no_ktp || data.NoKTP || data.nik || data.NIK || data.no_ktp_pemilik || '-';
         normalized.no_kk = data.no_kk || data.NoKK || '-';
         normalized.no_hp = data.no_hp || data.NoHP || data.hp || data.HP || '-';
         normalized.pekerjaan = data.pekerjaan || data.Pekerjaan || '-';
