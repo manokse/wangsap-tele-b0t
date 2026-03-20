@@ -751,39 +751,66 @@ ${LINE.double}
 // ═══════════════════════════════════════════
 // NOPOL RESULT MESSAGE (Legacy - kept for backwards compatibility)
 // ═══════════════════════════════════════════
+/**
+ * Format hasil cek NOPOL - HTML format for Telegram
+ * Handles multiple field name variations from different APIs (ASEX, TerbangBebas, Siakes)
+ */
 function nopolResultMessage(data, tokenUsed, requestId = '', remainingToken = 0) {
-    const platNomor = data.plate_number || `${data.wilayah || ''} ${data.nopol || ''} ${data.seri || ''}`.trim();
-    
+    // Normalize plate number from various field combinations
+    let platNomor = data.plate_number || data.plat_nomor || data.PlatNomor;
+    if (!platNomor || platNomor === '-') {
+        // Try to construct from parts
+        const wilayah = data.wilayah || data.SeriWilayah || '';
+        const nopol = data.nopol || data.Nopol || '';
+        const seri = data.seri || data.Seri || '';
+        platNomor = [wilayah, nopol, seri].filter(Boolean).join(' ').trim() || '-';
+    }
+
+    // Helper to get value from multiple possible field names
+    const get = (...fields) => {
+        for (const field of fields) {
+            if (data[field] !== undefined && data[field] !== null && data[field] !== '') {
+                return data[field];
+            }
+        }
+        return '-';
+    };
+
     return `
 🚗 <b>HASIL CEK NOPOL</b>
 ${LINE.double}
 
 🔖 <b>INFO KENDARAAN</b>
 Plat: <b>${escapeHtml(platNomor)}</b>
- Merk: ${escapeHtml(data.merk || data.Merk || '-')}
- Type: ${escapeHtml(data.type_model || data.Type || '-')}
- Model: ${escapeHtml(data.model || '-')}
- Tahun: ${escapeHtml(data.tahun_pembuatan || data.TahunPembuatan || '-')}
- Warna: ${escapeHtml(data.warna || data.Warna || '-')}
- CC: ${escapeHtml(data.isi_silinder || data.IsiCylinder || '-')}
- Roda: ${data.jumlah_roda || data.JumlahRoda || '-'}
+ Merk: ${escapeHtml(get('merk', 'Merk', 'brand', 'Brand'))}
+ Type: ${escapeHtml(get('type_model', 'Type', 'type', 'model', 'Model'))}
+ Model: ${escapeHtml(get('model', 'Model'))}
+ Tahun: ${escapeHtml(get('tahun_pembuatan', 'TahunPembuatan', 'tahun', 'Tahun'))}
+ Warna: ${escapeHtml(get('warna', 'Warna', 'color', 'Color'))}
+ CC: ${escapeHtml(get('isi_silinder', 'IsiCylinder', 'cc', 'CC'))}
+ Roda: ${get('jumlah_roda', 'JumlahRoda')}
 
 📋 <b>DOKUMEN</b>
- No. Rangka: <code>${data.no_rangka || data.NoRangka || '-'}</code>
- No. Mesin: <code>${data.no_mesin || data.NoMesin || '-'}</code>
- No. BPKB: <code>${data.no_bpkb || data.NoBPKB || '-'}</code>
- No. STNK: <code>${data.no_stnk || data.NoSTNK || '-'}</code>
- Tgl Daftar: ${escapeHtml(data.tanggal_daftar || data.TanggalDaftar || '-')}
+ No. Rangka: <code>${get('no_rangka', 'NoRangka')}</code>
+ No. Mesin: <code>${get('no_mesin', 'NoMesin')}</code>
+ No. BPKB: <code>${get('no_bpkb', 'NoBPKB')}</code>
+ No. STNK: <code>${get('no_stnk', 'NoSTNK')}</code>
+ No. Faktur: <code>${get('no_faktur', 'NoFaktur')}</code>
+ Tgl Daftar: ${escapeHtml(get('tanggal_daftar', 'TanggalDaftar'))}
 
 👤 <b>PEMILIK</b>
- Nama: <b>${escapeHtml(data.nama_pemilik || data.NamaPemilik || '-')}</b>
- NIK: <code>${data.no_ktp || data.NoKTP || '-'}</code>
- No. KK: <code>${data.no_kk || data.NoKK || '-'}</code>
- HP: ${escapeHtml(data.no_hp || data.NoHP || '-')}
- Pekerjaan: ${escapeHtml(data.pekerjaan || data.Pekerjaan || '-')}
+ Nama: <b>${escapeHtml(get('nama_pemilik', 'NamaPemilik', 'nama', 'Nama'))}</b>
+ NIK: <code>${get('no_ktp', 'NoKTP', 'nik', 'NIK')}</code>
+ No. KK: <code>${get('no_kk', 'NoKK')}</code>
+ HP: ${escapeHtml(get('no_hp', 'NoHP', 'hp', 'HP'))}
+ Pekerjaan: ${escapeHtml(get('pekerjaan', 'Pekerjaan'))}
 
 🏠 <b>ALAMAT</b>
- ${escapeHtml(data.alamat || data.Alamat || '-')}
+ ${escapeHtml(get('alamat', 'Alamat'))}
+
+📍 <b>LOKASI</b>
+ Provinsi: ${escapeHtml(get('provinsi', 'Provinsi'))}
+ Polda: ${escapeHtml(get('polda', 'Polda'))}
 
 ${LINE.thin}
 🆔 ID: <code>${requestId}</code>

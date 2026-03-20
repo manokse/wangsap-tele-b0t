@@ -36,6 +36,60 @@ class AsexVehicleService {
     }
 
     /**
+     * Normalize nopol input - remove spaces and uppercase
+     * Examples: "A 8073 XA" -> "A8073XA", "a8073xa" -> "A8073XA"
+     */
+    normalizeNopol(value) {
+        return value.replace(/\s+/g, '').toUpperCase();
+    }
+
+    /**
+     * Normalize vehicle data from ASEX API to match formatter expectations
+     * Maps various field name variations to standard format
+     */
+    normalizeData(data) {
+        if (!data) return data;
+
+        // Create normalized copy
+        const normalized = { ...data };
+
+        // Normalize plate number - combine wilayah, nopol, seri if available
+        if (!normalized.plate_number) {
+            const wilayah = data.wilayah || data.SeriWilayah || '';
+            const nopol = data.nopol || data.Nopol || '';
+            const seri = data.seri || data.Seri || '';
+            normalized.plate_number = [wilayah, nopol, seri].filter(Boolean).join(' ').trim() || data.plat_nomor || '-';
+        }
+
+        // Map field variations to standard names
+        normalized.merk = data.merk || data.Merk || data.brand || data.Brand || '-';
+        normalized.type_model = data.type_model || data.Type || data.model || data.Model || '-';
+        normalized.model = data.model || data.Model || '-';
+        normalized.tahun_pembuatan = data.tahun_pembuatan || data.TahunPembuatan || data.tahun || data.Tahun || '-';
+        normalized.warna = data.warna || data.Warna || data.color || data.Color || '-';
+        normalized.isi_silinder = data.isi_silinder || data.IsiCylinder || data.cc || data.CC || '-';
+        normalized.jumlah_roda = data.jumlah_roda || data.JumlahRoda || '-';
+
+        normalized.no_rangka = data.no_rangka || data.NoRangka || '-';
+        normalized.no_mesin = data.no_mesin || data.NoMesin || '-';
+        normalized.no_bpkb = data.no_bpkb || data.NoBPKB || '-';
+        normalized.no_stnk = data.no_stnk || data.NoSTNK || '-';
+        normalized.no_faktur = data.no_faktur || data.NoFaktur || '-';
+        normalized.tanggal_daftar = data.tanggal_daftar || data.TanggalDaftar || '-';
+
+        normalized.nama_pemilik = data.nama_pemilik || data.NamaPemilik || data.nama || data.Nama || '-';
+        normalized.no_ktp = data.no_ktp || data.NoKTP || data.nik || data.NIK || '-';
+        normalized.no_kk = data.no_kk || data.NoKK || '-';
+        normalized.no_hp = data.no_hp || data.NoHP || data.hp || data.HP || '-';
+        normalized.pekerjaan = data.pekerjaan || data.Pekerjaan || '-';
+        normalized.alamat = data.alamat || data.Alamat || '-';
+        normalized.provinsi = data.provinsi || data.Provinsi || '-';
+        normalized.polda = data.polda || data.Polda || '-';
+
+        return normalized;
+    }
+
+    /**
      * Direct lookup - no callback/polling
      * Note: API takes ~30 seconds to respond
      */
@@ -49,11 +103,18 @@ class AsexVehicleService {
             };
         }
 
+        // Normalize input value (especially for nopol)
+        let normalizedValue = value;
+        if (type === 'nopol') {
+            normalizedValue = this.normalizeNopol(value);
+            console.log(`[ASEX] Normalized nopol: "${value}" -> "${normalizedValue}"`);
+        }
+
         try {
-            const url = `${this.getBaseUrl()}?api_key=${this.getApiKey()}&${paramName}=${encodeURIComponent(value)}`;
-            
-            console.log(`[ASEX Vehicle] ${type.toUpperCase()}: ${value}`);
-            
+            const url = `${this.getBaseUrl()}?api_key=${this.getApiKey()}&${paramName}=${encodeURIComponent(normalizedValue)}`;
+
+            console.log(`[ASEX Vehicle] ${type.toUpperCase()}: ${normalizedValue}`);
+
             const response = await axios.get(url, {
                 timeout: 90000, // 90 seconds timeout (API takes ~30s)
                 headers: {
@@ -75,9 +136,12 @@ class AsexVehicleService {
 
             // Check if status is true and data exists
             if (data.status === true && data.data) {
+                // Normalize the response data to match formatter expectations
+                const normalizedData = this.normalizeData(data.data);
+
                 return {
                     success: true,
-                    data: data.data,
+                    data: normalizedData,
                     source: 'asexapi',
                     refund: false
                 };
