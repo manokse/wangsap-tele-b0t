@@ -746,17 +746,17 @@ class APIService {
         if (nopolRegex.test(query) && query.length >= 2 && query.length <= 9) {
             return 'nopol';
         }
-        // NOKA (Nomor Rangka): 15-17 alphanumeric
-        if (/^[A-Z0-9]{15,17}$/.test(query)) {
-            return 'noka';
-        }
-        // NOSIN (Nomor Mesin): 10-16 alphanumeric
-        if (/^[A-Z0-9]{10,16}$/.test(query)) {
-            return 'nosin';
-        }
-        // NIK (Nomor KTP): 16 digits
+        // NIK (Nomor KTP): 16 digits - CHECK BEFORE NOKA/NOSIN!
         if (/^[0-9]{16}$/.test(query)) {
             return 'nikplat';
+        }
+        // NOKA (Nomor Rangka): 15-17 alphanumeric (must contain letters)
+        if (/^[A-Z0-9]{15,17}$/.test(query) && /[A-Z]/.test(query)) {
+            return 'noka';
+        }
+        // NOSIN (Nomor Mesin): 10-16 alphanumeric (must contain letters)
+        if (/^[A-Z0-9]{10,16}$/.test(query) && /[A-Z]/.test(query)) {
+            return 'nosin';
         }
         return null;
     }

@@ -753,9 +753,23 @@ ${LINE.double}
 // ═══════════════════════════════════════════
 /**
  * Format hasil cek NOPOL - HTML format for Telegram
+ * Support SINGLE data (backward compatible) dan MULTIPLE vehicles
  * Handles multiple field name variations from different APIs (ASEX, TerbangBebas, Siakes)
  */
 function nopolResultMessage(data, tokenUsed, requestId = '', remainingToken = 0) {
+    // Check if data is array (multiple vehicles)
+    if (Array.isArray(data)) {
+        return nopolMultiResultMessage(data, tokenUsed, requestId, remainingToken);
+    }
+
+    // Single vehicle (backward compatible)
+    return nopolSingleResultMessage(data, tokenUsed, requestId, remainingToken);
+}
+
+/**
+ * Format single vehicle data
+ */
+function nopolSingleResultMessage(data, tokenUsed, requestId = '', remainingToken = 0) {
     // Normalize plate number from various field combinations
     let platNomor = data.plate_number || data.plat_nomor || data.PlatNomor;
     if (!platNomor || platNomor === '-') {
@@ -816,6 +830,78 @@ ${LINE.thin}
 🆔 ID: <code>${requestId}</code>
 🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
 `;
+}
+
+/**
+ * Format multiple vehicles data - display ALL vehicles
+ * Returns array of messages (Telegram limit ~4096 chars per message)
+ */
+function nopolMultiResultMessage(vehicles, tokenUsed, requestId = '', remainingToken = 0) {
+    const total = vehicles.length;
+    const messages = [];
+
+    // Format each vehicle as separate message
+    for (let i = 0; i < vehicles.length; i++) {
+        const vehicle = vehicles[i];
+        const index = i + 1;
+
+        const platNomor = vehicle.plate_number || 
+            `${vehicle.wilayah || ''} ${vehicle.nopol || ''} ${vehicle.seri || ''}`.trim() || '-';
+
+        const get = (...fields) => {
+            for (const field of fields) {
+                if (vehicle[field] !== undefined && vehicle[field] !== null && vehicle[field] !== '') {
+                    return vehicle[field];
+                }
+            }
+            return '-';
+        };
+
+        const header = total > 1 
+            ? `🚗 <b>HASIL CEK NOPOL (${index}/${total})</b>`
+            : `🚗 <b>HASIL CEK NOPOL</b>`;
+
+        let msg = `
+${header}
+${LINE.double}
+
+🔖 <b>INFO KENDARAAN</b>
+Plat: <b>${escapeHtml(platNomor)}</b>
+Merk: ${escapeHtml(get('merk', 'Merk', 'brand'))}
+Type: ${escapeHtml(get('type_model', 'Type', 'type'))}
+Tahun: ${escapeHtml(get('tahun_pembuatan', 'TahunPembuatan', 'tahun'))}
+Warna: ${escapeHtml(get('warna', 'Warna', 'color'))}
+CC: ${escapeHtml(get('isi_silinder', 'IsiCylinder', 'cc'))}
+
+📋 <b>DOKUMEN</b>
+No. Rangka: <code>${get('no_rangka', 'NoRangka')}</code>
+No. Mesin: <code>${get('no_mesin', 'NoMesin')}</code>
+No. BPKB: <code>${get('no_bpkb', 'NoBPKB')}</code>
+No. STNK: <code>${get('no_stnk', 'NoSTNK')}</code>
+Tgl Daftar: ${escapeHtml(get('tanggal_daftar', 'TanggalDaftar'))}
+
+👤 <b>PEMILIK</b>
+Nama: <b>${escapeHtml(get('nama_pemilik', 'NamaPemilik', 'nama'))}</b>
+NIK: <code>${get('no_ktp', 'NoKTP', 'nik')}</code>
+HP: ${escapeHtml(get('no_hp', 'NoHP', 'hp'))}
+
+🏠 <b>ALAMAT</b>
+${escapeHtml(get('alamat', 'Alamat'))}
+`;
+
+        // Add footer to last message only
+        if (i === vehicles.length - 1) {
+            msg += `
+${LINE.thin}
+🆔 ID: <code>${requestId}</code>
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
+`;
+        }
+
+        messages.push(msg);
+    }
+
+    return messages;
 }
 
 // ═══════════════════════════════════════════

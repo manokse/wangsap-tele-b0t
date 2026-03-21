@@ -1150,8 +1150,17 @@ Pilih fitur yang ingin digunakan:
 
             const latestUser = db.getUser(userId);
             const latestRemaining = latestUser?.token_balance || 0;
-            const text = formatter.nopolResultMessage(cachedData, lookupCost, requestId, latestRemaining);
-            await bot.sendMessage(msg.chat.id, text, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
+            const messages = formatter.nopolResultMessage(cachedData, lookupCost, requestId, latestRemaining);
+            
+            // Handle single or multiple messages
+            if (Array.isArray(messages)) {
+                for (let i = 0; i < messages.length; i++) {
+                    await bot.sendMessage(msg.chat.id, messages[i], { parse_mode: 'HTML', reply_to_message_id: i === 0 ? msg.message_id : 0 });
+                    if (i < messages.length - 1) await new Promise(r => setTimeout(r, 500));
+                }
+            } else {
+                await bot.sendMessage(msg.chat.id, messages, { parse_mode: 'HTML', reply_to_message_id: msg.message_id });
+            }
             return;
         }
 
@@ -1183,15 +1192,33 @@ Pilih fitur yang ingin digunakan:
             return;
         }
 
-        db.updateApiRequest(requestId, 'success', `${result.data?.nama_pemilik || 'Data kendaraan'}`, null, null, result.data);
+        db.updateApiRequest(requestId, 'success', `${result.total || 1} kendaraan ditemukan`, null, null, result.data);
         db.createTransaction(userId, 'check', lookupCost, `${title} berhasil`, query, 'success');
 
-        const text = formatter.nopolResultMessage(result.data, lookupCost, requestId, remainingToken);
-        await bot.editMessageText(text, {
-            chat_id: msg.chat.id,
-            message_id: processingMsg.message_id,
-            parse_mode: 'HTML'
-        });
+        const messages = formatter.nopolResultMessage(result.data, lookupCost, requestId, remainingToken);
+        
+        // Handle multiple vehicles - send as separate messages
+        if (Array.isArray(messages)) {
+            // Edit processing message with first result
+            await bot.editMessageText(messages[0], {
+                chat_id: msg.chat.id,
+                message_id: processingMsg.message_id,
+                parse_mode: 'HTML'
+            });
+            
+            // Send remaining messages
+            for (let i = 1; i < messages.length; i++) {
+                await bot.sendMessage(msg.chat.id, messages[i], { parse_mode: 'HTML' });
+                await new Promise(r => setTimeout(r, 500));
+            }
+        } else {
+            // Single vehicle
+            await bot.editMessageText(messages, {
+                chat_id: msg.chat.id,
+                message_id: processingMsg.message_id,
+                parse_mode: 'HTML'
+            });
+        }
     },
 
     async nopol(bot, msg, args) {

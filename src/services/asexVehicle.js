@@ -171,12 +171,13 @@ class AsexVehicleService {
 
             // Check if status is true and data exists
             if (data.status === true && data.data && Array.isArray(data.data) && data.data.length > 0) {
-                // Normalize the first result
-                const normalizedData = this.normalizeData(data.data[0]);
+                // Normalize ALL results - support multiple vehicles
+                const normalizedData = data.data.map(item => this.normalizeData(item));
 
                 return {
                     success: true,
-                    data: normalizedData,
+                    data: normalizedData, // Return array of all vehicles
+                    total: data.data.length,
                     source: 'asexapi',
                     quota: {
                         used_today: data.used_today || 0,
