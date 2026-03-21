@@ -3,18 +3,31 @@ const config = require('../config');
 const db = require('../database');
 
 /**
- * ASEX Vehicle API Service - Updated
- * Direct response API (no callback/polling)
+ * ASEX Vehicle API Service - Telegram Bot
  * 
  * Endpoints:
- * - NOPOL:  https://asexapi.cloud/api/nopol/?api_key=XXX&plate=XXX
- * - NOKA:   https://asexapi.cloud/api/nopol/?api_key=XXX&no_rangka=XXX
- * - NOSIN:  https://asexapi.cloud/api/nopol/?api_key=XXX&no_mesin=XXX
- * - NIKPLAT: https://asexapi.cloud/api/nopol/?api_key=XXX&no_ktp=XXX
+ * - NOPOL:  https://apiv3.asexapi.cloud/nopol/?api_key=XXX&q=F6347ubi
+ * - NOKA:   https://apiv3.asexapi.cloud/noka/?api_key=XXX&NoRangka=MH1JM3136KK103959
+ * - NOSIN:  https://apiv3.asexapi.cloud/nosin/?api_key=XXX&NoMesin=JM31E3099166
+ * - NIKPLAT: https://apiv3.asexapi.cloud/pemilik/?api_key=XXX&NoKTP=3202164401900007
+ * 
+ * Example Response:
+ * {
+ *   "status": true,
+ *   "query": "F6347ubi",
+ *   "used_today": 11,
+ *   "limit": 1000,
+ *   "data": [{ ... }]
+ * }
  */
 class AsexVehicleService {
     constructor() {
-        this.activePolls = new Map();
+        this.baseUrls = {
+            nopol: 'https://apiv3.asexapi.cloud/nopol/',
+            noka: 'https://apiv3.asexapi.cloud/noka/',
+            nosin: 'https://apiv3.asexapi.cloud/nosin/',
+            nikplat: 'https://apiv3.asexapi.cloud/pemilik/'
+        };
     }
 
     getApiKey() {
@@ -22,16 +35,22 @@ class AsexVehicleService {
         return settings.asex_api_key || config.asexApiKey;
     }
 
-    getBaseUrl() {
-        return 'https://asexapi.cloud/api/nopol/';
+    /**
+     * Get API endpoint URL based on lookup type
+     */
+    getEndpoint(type) {
+        return this.baseUrls[type];
     }
 
+    /**
+     * Get API query parameter name based on lookup type
+     */
     getQueryParam(type) {
         return {
-            nopol: 'plate',
-            noka: 'no_rangka',
-            nosin: 'no_mesin',
-            nikplat: 'no_ktp'
+            nopol: 'q',
+            noka: 'NoRangka',
+            nosin: 'NoMesin',
+            nikplat: 'NoKTP'
         }[type];
     }
 
@@ -56,41 +75,49 @@ class AsexVehicleService {
         // Helper to check if value is meaningful (not null, undefined, empty, or "0" or "-")
         const hasValue = (val) => val != null && val !== '' && val !== '0' && val !== '-';
 
-        // Normalize plate number - ASEX returns parts: plate_region, plate_number, plate_series
-        const region = data.plate_region || data.wilayah || '';
-        const number = data.plate_number || data.nopol || '';
-        const series = data.plate_series || data.seri || '';
+        // Plate number - combine wilayah, nopol, seri
+        const wilayah = data.wilayah || '';
+        const nopol = data.nopol || '';
+        const seri = data.seri || '';
         
-        if (hasValue(region) || hasValue(number) || hasValue(series)) {
-            normalized.plate_number = [region, number, series].filter(hasValue).join(' ').trim() || '-';
+        if (hasValue(wilayah) || hasValue(nopol) || hasValue(seri)) {
+            normalized.plate_number = [wilayah, nopol, seri].filter(hasValue).join(' ').trim();
         } else {
-            normalized.plate_number = data.plat_nomor || data.no_polisi || '-';
+            normalized.plate_number = data.plate_number || data.plat_nomor || '-';
         }
 
-        // Map field variations based on actual API response
-        normalized.merk = hasValue(data.brand) ? data.brand : (hasValue(data.merk) ? data.merk : '-');
-        normalized.type_model = hasValue(data.vehicle_type) ? data.vehicle_type : (hasValue(data.Type) ? data.Type : (hasValue(data.type) ? data.type : '-'));
-        normalized.model = hasValue(data.model) ? data.model : (hasValue(data.Model) ? data.Model : '-');
-        normalized.tahun_pembuatan = hasValue(data.manufacture_year) ? data.manufacture_year : (hasValue(data.tahun) ? data.tahun : '-');
-        normalized.warna = hasValue(data.color) ? data.color : (hasValue(data.warna) ? data.warna : '-');
-        normalized.isi_silinder = hasValue(data.engine_capacity_cc) ? data.engine_capacity_cc : (hasValue(data.cc) ? data.cc : '-');
-        normalized.jumlah_roda = hasValue(data.wheel_count) ? data.wheel_count : (hasValue(data.jml_roda) ? data.jml_roda : '-');
+        // Map field variations from ASEX API response
+        normalized.wilayah = hasValue(data.wilayah) ? data.wilayah : '-';
+        normalized.nopol = hasValue(data.nopol) ? data.nopol : '-';
+        normalized.seri = hasValue(data.seri) ? data.seri : '-';
+        
+        normalized.merk = hasValue(data.Merk) ? data.Merk : (hasValue(data.merk) ? data.merk : '-');
+        normalized.type_model = hasValue(data.Type) ? data.Type : (hasValue(data.type) ? data.type : '-');
+        normalized.model = hasValue(data.Model) ? data.Model : '-';
+        normalized.tahun_pembuatan = hasValue(data.TahunPembuatan) ? data.TahunPembuatan : (hasValue(data.tahun) ? data.tahun : '-');
+        normalized.warna = hasValue(data.Warna) ? data.Warna : (hasValue(data.warna) ? data.warna : '-');
+        normalized.isi_silinder = hasValue(data.IsiCylinder) ? data.IsiCylinder : (hasValue(data.cc) ? data.cc : '-');
+        normalized.jumlah_roda = hasValue(data.JumlahRoda) ? data.JumlahRoda : (hasValue(data.jml_roda) ? data.jml_roda : '-');
 
-        normalized.no_rangka = hasValue(data.chassis_number) ? data.chassis_number : (hasValue(data.no_rangka) ? data.no_rangka : '-');
-        normalized.no_mesin = hasValue(data.engine_number) ? data.engine_number : (hasValue(data.no_mesin) ? data.no_mesin : '-');
-        normalized.no_bpkb = hasValue(data.bpkb_number) ? data.bpkb_number : (hasValue(data.no_bpkb) ? data.no_bpkb : '-');
-        normalized.no_stnk = hasValue(data.stnk_number) ? data.stnk_number : (hasValue(data.no_stnk) ? data.no_stnk : '-');
-        normalized.no_faktur = hasValue(data.invoice_number) && data.invoice_number !== '0' ? data.invoice_number : '-';
-        normalized.tanggal_daftar = hasValue(data.registration_date) ? data.registration_date : (hasValue(data.tgl_daftar) ? data.tgl_daftar : '-');
+        normalized.no_rangka = hasValue(data.NoRangka) ? data.NoRangka : (hasValue(data.no_rangka) ? data.no_rangka : '-');
+        normalized.no_mesin = hasValue(data.NoMesin) ? data.NoMesin : (hasValue(data.no_mesin) ? data.no_mesin : '-');
+        normalized.no_bpkb = hasValue(data.NoBPKB) ? data.NoBPKB : '-';
+        normalized.no_stnk = hasValue(data.NoSTNK) ? data.NoSTNK : '-';
+        normalized.no_faktur = hasValue(data.NoFaktur) && data.NoFaktur !== '0' ? data.NoFaktur : '-';
+        normalized.tanggal_daftar = hasValue(data.TanggalDaftar) ? data.TanggalDaftar : '-';
 
-        // Owner info - keep "-" as valid value for owner_name since it means "no name"
-        normalized.nama_pemilik = data.owner_name !== undefined && data.owner_name !== null ? data.owner_name : (hasValue(data.nama) ? data.nama : '-');
-        normalized.no_ktp = hasValue(data.nik) ? data.nik : (hasValue(data.no_ktp) ? data.no_ktp : '-');
-        normalized.no_kk = hasValue(data.kk_number) ? data.kk_number : '-';
-        normalized.no_hp = hasValue(data.phone_number) ? data.phone_number : '-';
-        normalized.pekerjaan = hasValue(data.owner_job) ? data.owner_job : '-';
-        normalized.alamat = hasValue(data.owner_address) ? data.owner_address : '-';
-        normalized.provinsi = hasValue(data.province_code) ? data.province_code : '-';
+        // Owner info
+        normalized.nama_pemilik = hasValue(data.NamaPemilik) ? data.NamaPemilik : (hasValue(data.nama) ? data.nama : '-');
+        normalized.no_ktp = hasValue(data.NoKTP) ? data.NoKTP : (hasValue(data.nik) ? data.nik : '-');
+        normalized.no_kk = hasValue(data.NoKK) ? data.NoKK : '-';
+        normalized.no_hp = hasValue(data.NoHP) ? data.NoHP : '-';
+        normalized.email = hasValue(data.Email) ? data.Email : '-';
+        normalized.pekerjaan = hasValue(data.Pekerjaan) ? data.Pekerjaan : '-';
+        normalized.alamat = hasValue(data.alamat) ? data.alamat : '-';
+        normalized.rt = hasValue(data.RT) ? data.RT : '-';
+        normalized.rw = hasValue(data.RW) ? data.RW : '-';
+        normalized.kode_provinsi = hasValue(data.KodeProvinsi) ? data.KodeProvinsi : '-';
+        normalized.kode_kelurahan = hasValue(data.KodeKel) ? data.KodeKel : '-';
         normalized.polda = hasValue(data.polda) ? data.polda : '-';
 
         return normalized;
@@ -98,11 +125,12 @@ class AsexVehicleService {
 
     /**
      * Direct lookup - no callback/polling
-     * Note: API takes ~30 seconds to respond
      */
     async lookup(type, value) {
-        const paramName = this.getQueryParam(type);
-        if (!paramName) {
+        const endpoint = this.getEndpoint(type);
+        const queryParam = this.getQueryParam(type);
+        
+        if (!endpoint || !queryParam) {
             return {
                 success: false,
                 error: 'Tipe pencarian kendaraan tidak valid',
@@ -118,12 +146,12 @@ class AsexVehicleService {
         }
 
         try {
-            const url = `${this.getBaseUrl()}?api_key=${this.getApiKey()}&${paramName}=${encodeURIComponent(normalizedValue)}`;
+            const url = `${endpoint}?api_key=${this.getApiKey()}&${queryParam}=${encodeURIComponent(normalizedValue)}`;
 
             console.log(`[ASEX Vehicle] ${type.toUpperCase()}: ${normalizedValue}`);
 
             const response = await axios.get(url, {
-                timeout: 90000, // 90 seconds timeout (API takes ~30s)
+                timeout: 60000, // 60 seconds timeout
                 headers: {
                     'Accept': 'application/json',
                     'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
@@ -132,7 +160,7 @@ class AsexVehicleService {
 
             const data = response.data || {};
 
-            // Check if status is false (data not found)
+            // Check if status is false (data not found or error)
             if (data.status === false) {
                 return {
                     success: false,
@@ -142,15 +170,28 @@ class AsexVehicleService {
             }
 
             // Check if status is true and data exists
-            if (data.status === true && data.data) {
-                // Normalize the response data to match formatter expectations
-                const normalizedData = this.normalizeData(data.data);
+            if (data.status === true && data.data && Array.isArray(data.data) && data.data.length > 0) {
+                // Normalize the first result
+                const normalizedData = this.normalizeData(data.data[0]);
 
                 return {
                     success: true,
                     data: normalizedData,
                     source: 'asexapi',
+                    quota: {
+                        used_today: data.used_today || 0,
+                        limit: data.limit || 1000
+                    },
                     refund: false
+                };
+            }
+
+            // Data array empty
+            if (data.status === true && (!data.data || !Array.isArray(data.data) || data.data.length === 0)) {
+                return {
+                    success: false,
+                    error: 'Data kendaraan tidak ditemukan',
+                    refund: true
                 };
             }
 
@@ -174,6 +215,9 @@ class AsexVehicleService {
         return this.lookup(type, value);
     }
 
+    /**
+     * Handle API errors
+     */
     handleError(error) {
         if (error.code === 'ECONNABORTED' || error.code === 'ETIMEDOUT') {
             return {
@@ -185,8 +229,9 @@ class AsexVehicleService {
 
         if (error.response) {
             let message = 'Server kendaraan sedang bermasalah';
+            
             if (error.response.status === 401 || error.response.status === 403) {
-                message = 'Akses API kendaraan ditolak';
+                message = 'Akses API kendaraan ditolak (API Key invalid)';
             } else if (error.response.status === 429) {
                 message = 'API kendaraan terlalu sibuk, coba lagi nanti';
             } else if (error.response.status === 404) {
@@ -205,10 +250,6 @@ class AsexVehicleService {
             error: 'Gagal menghubungi server kendaraan',
             refund: true
         };
-    }
-
-    delay(ms) {
-        return new Promise(resolve => setTimeout(resolve, ms));
     }
 }
 

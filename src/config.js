@@ -31,8 +31,8 @@ module.exports = {
     nopolApiKey: process.env.NOPOL_API_KEY || '',
     nopolBaseUrl: process.env.NOPOL_BASE_URL || 'https://siakses.my.id/api',
 
-    // ASEX Vehicle API (untuk /nopol, /noka, /nosin, /nikplat) - Direct Response
-    asexApiKey: process.env.ASEX_API_KEY || 'jUB7JFSE4ixFwyKkiB7RwcRHtkIXRRk1',
+    // ASEX Vehicle API (untuk /nopol, /noka, /nosin, /nikplat) - APIv3
+    asexApiKey: process.env.ASEX_API_KEY || '014781600460669',
 
     // TerbangBebas API (untuk /nopol, /noka, /nosin, /nikvehicle)
     terbangbebasApiKey: process.env.TERBANGBEBAS_API_KEY || 'bb1939cc65b3f5dc732c8f94ce14bc92',
