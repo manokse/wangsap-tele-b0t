@@ -1034,7 +1034,7 @@ const ownerCommands = {
     async backup(bot, msg, args) {
         const settings = db.getAllSettings();
         const targets = settings.backup_targets_tg ? JSON.parse(settings.backup_targets_tg) : [];
-        
+
         if (targets.length === 0) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Belum ada target backup!\n\nGunakan: <code>/setbackup add &lt;id&gt;</code> atau <code>/setbackup here</code>`,
@@ -1044,14 +1044,14 @@ const ownerCommands = {
         }
 
         await bot.sendMessage(msg.chat.id,
-            `⏳ <b>Memulai backup...</b>\n\n🔄 Mengekspor database...\n📤 Mengirim ke ${targets.length} target...`,
+            `⏳ <b>Memulai backup...</b>\n\n🔄 Mengekspor database...\n📦 Kompresi ZIP aktif\n📤 Mengirim ke ${targets.length} target...`,
             { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
         );
 
         try {
             // Create backup file
             const backupResult = await this._createBackup();
-            
+
             if (!backupResult.success) {
                 await bot.sendMessage(msg.chat.id,
                     `❌ Backup gagal: ${formatter.escapeHtml(backupResult.error)}`,
@@ -1066,12 +1066,14 @@ const ownerCommands = {
 
             for (const target of targets) {
                 try {
+                    const caption = `💾 <b>DATABASE BACKUP</b>\n\n📅 Tanggal: ${new Date().toLocaleDateString('id-ID')}\n⏰ Waktu: ${new Date().toLocaleTimeString('id-ID')}\n📊 Size: ${backupResult.size}${backupResult.compressionRatio ? `\n📦 Kompresi: ${backupResult.compressionRatio}% (Original: ${backupResult.originalSize})` : ''}\n\n<i>Backup dari ${config.botName}</i>`;
+                    
                     await bot.sendDocument(target, backupResult.path, {
-                        caption: `💾 <b>DATABASE BACKUP</b>\n\n📅 Tanggal: ${new Date().toLocaleDateString('id-ID')}\n⏰ Waktu: ${new Date().toLocaleTimeString('id-ID')}\n📊 Size: ${backupResult.size}\n\n<i>Backup dari ${config.botName}</i>`,
+                        caption: caption,
                         parse_mode: 'HTML'
                     }, {
                         filename: backupResult.filename,
-                        contentType: 'application/x-sqlite3'
+                        contentType: 'application/zip'
                     });
                     successCount++;
                     await new Promise(r => setTimeout(r, 500));
@@ -1086,7 +1088,7 @@ const ownerCommands = {
             try { fs.unlinkSync(backupResult.path); } catch (e) {}
 
             await bot.sendMessage(msg.chat.id,
-                `✅ <b>BACKUP SELESAI</b>\n\n📤 Terkirim: ${successCount}\n❌ Gagal: ${failCount}\n📊 Size: ${backupResult.size}`,
+                `✅ <b>BACKUP SELESAI</b>\n\n📤 Terkirim: ${successCount}\n❌ Gagal: ${failCount}\n📊 Size: ${backupResult.size}${backupResult.compressionRatio ? `\n📦 Kompresi: ${backupResult.compressionRatio}% lebih kecil` : ''}`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
 
@@ -1100,16 +1102,68 @@ const ownerCommands = {
     },
 
     /**
-     * Internal: Create backup file
+     * Command: /cleanbackup [days]
+     * Clean old backup files (default: keep last 7 days)
+     */
+    async cleanbackup(bot, msg, args) {
+        const fs = require('fs');
+        const path = require('path');
+
+        const daysToKeep = parseInt(args[0]) || 7;
+        const dataFolder = path.join(__dirname, '..', '..', 'data');
+        const backupFolder = path.join(dataFolder, 'backups');
+
+        if (!fs.existsSync(backupFolder)) {
+            await bot.sendMessage(msg.chat.id,
+                `ℹ️ <b>Folder backup tidak ditemukan</b>`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const now = Date.now();
+        const msPerDay = 24 * 60 * 60 * 1000;
+        const cutoff = now - (daysToKeep * msPerDay);
+
+        let deletedCount = 0;
+        let totalSize = 0;
+
+        const files = fs.readdirSync(backupFolder);
+        for (const file of files) {
+            if (!file.includes('backup_')) continue;
+
+            const filePath = path.join(backupFolder, file);
+            const stats = fs.statSync(filePath);
+
+            if (stats.mtimeMs < cutoff) {
+                totalSize += stats.size;
+                fs.unlinkSync(filePath);
+                deletedCount++;
+            }
+        }
+
+        const sizeFormatted = totalSize > 1024 * 1024
+            ? `${(totalSize / 1024 / 1024).toFixed(2)} MB`
+            : `${(totalSize / 1024).toFixed(2)} KB`;
+
+        await bot.sendMessage(msg.chat.id,
+            `✅ <b>CLEANUP SELESAI</b>\n\n🗑️ File dihapus: ${deletedCount}\n💾 Ruang dibebaskan: ${sizeFormatted}\n📅 Retensi: ${daysToKeep} hari`,
+            { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+        );
+    },
+
+    /**
+     * Internal: Create backup file (with ZIP compression)
      */
     async _createBackup() {
         const fs = require('fs');
         const path = require('path');
-        
+        const zlib = require('zlib');
+
         try {
             const dataFolder = path.join(__dirname, '..', '..', 'data');
             const dbPath = path.join(dataFolder, 'database.db');
-            
+
             if (!fs.existsSync(dbPath)) {
                 return { success: false, error: 'Database file tidak ditemukan' };
             }
@@ -1125,25 +1179,69 @@ const ownerCommands = {
             const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
             const filename = `backup_${config.botName}_TG_${timestamp}.db`;
             const backupPath = path.join(backupFolder, filename);
+            const zipPath = backupPath + '.zip';
 
-            // Copy database file
-            fs.copyFileSync(dbPath, backupPath);
+            // Read and compress database file
+            const dbBuffer = fs.readFileSync(dbPath);
+            
+            // Try gzip compression (can reduce 60MB to ~10-15MB)
+            const compressed = zlib.gzipSync(dbBuffer, { level: 9 });
+            
+            // Save compressed file
+            fs.writeFileSync(zipPath, compressed);
 
-            // Get file size
-            const stats = fs.statSync(backupPath);
-            const sizeKB = (stats.size / 1024).toFixed(2);
-            const size = stats.size > 1024 * 1024 
-                ? `${(stats.size / 1024 / 1024).toFixed(2)} MB`
-                : `${sizeKB} KB`;
+            // Get file sizes
+            const originalSize = dbBuffer.length;
+            const compressedSize = compressed.length;
+            const compressionRatio = ((1 - compressedSize / originalSize) * 100).toFixed(1);
+            
+            const formatSize = (bytes) => {
+                if (bytes > 1024 * 1024) {
+                    return `${(bytes / 1024 / 1024).toFixed(2)} MB`;
+                }
+                return `${(bytes / 1024).toFixed(2)} KB`;
+            };
+
+            console.log(`💾 Backup created: ${formatSize(originalSize)} → ${formatSize(compressedSize)} (${compressionRatio}% smaller)`);
 
             return {
                 success: true,
-                path: backupPath,
-                filename: filename,
-                size: size
+                path: zipPath,
+                filename: filename + '.zip',
+                size: formatSize(compressedSize),
+                originalSize: formatSize(originalSize),
+                compressedSize: formatSize(compressedSize),
+                compressionRatio: compressionRatio
             };
         } catch (error) {
-            return { success: false, error: error.message };
+            console.error('Backup compression error:', error);
+            // Fallback: try without compression if gzip fails
+            try {
+                const dataFolder = path.join(__dirname, '..', '..', 'data');
+                const dbPath = path.join(dataFolder, 'database.db');
+                const backupFolder = path.join(dataFolder, 'backups');
+                
+                const now = new Date();
+                const timestamp = now.toISOString().replace(/[:.]/g, '-').slice(0, 19);
+                const filename = `backup_${config.botName}_TG_${timestamp}.db`;
+                const backupPath = path.join(backupFolder, filename);
+                
+                fs.copyFileSync(dbPath, backupPath);
+                const stats = fs.statSync(backupPath);
+                const size = stats.size > 1024 * 1024
+                    ? `${(stats.size / 1024 / 1024).toFixed(2)} MB`
+                    : `${(stats.size / 1024).toFixed(2)} KB`;
+                
+                return {
+                    success: true,
+                    path: backupPath,
+                    filename: filename,
+                    size: size,
+                    uncompressed: true
+                };
+            } catch (fallbackError) {
+                return { success: false, error: error.message };
+            }
         }
     },
 

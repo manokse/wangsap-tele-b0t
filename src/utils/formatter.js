@@ -1256,7 +1256,8 @@ ${LINE.double}
 📝 /apilogs
 
 <b>💾 BACKUP</b>
-💾 /backup (manual)
+💾 /backup (manual backup)
+🧹 /cleanbackup [days] (cleanup)
 ⚙️ /setbackup (setting)
 `;
 }
