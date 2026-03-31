@@ -466,8 +466,10 @@ class APIService {
      */
     async fetchNIKAddress(nik) {
         try {
-            const apiKey = this.getApiKey('nik') || 'yupi_key';
-            const url = `https://nik.deltaforce.space/${nik}?apikey=${apiKey}`;
+            const cleanNik = String(nik || '').replace(/\D/g, '');
+            if (!cleanNik) return null;
+
+            const url = `http://151.240.0.241/api_nik.php?nik=${encodeURIComponent(cleanNik)}`;
             
             const response = await axios.get(url, {
                 timeout: 10000, // timeout lebih pendek untuk enrichment
@@ -476,28 +478,32 @@ class APIService {
                 }
             });
 
-            const data = response.data;
+            const payload = response.data;
 
-            if (!data.status || data.status !== 200 || !data.data) {
+            if (!payload || payload.error || !payload.data) {
                 return null;
             }
 
-            const d = data.data;
-            // Gunakan full_address dari API jika tersedia
+            const d = payload.data;
+            const kelurahan = d.kelurahan || d.kelurahan_id_text || '-';
+            const kecamatan = d.kecamatan || d.kecamatan_id_text || '-';
+            const kabupaten = d.kabupaten || d.kabupaten_id_text || '-';
+            const provinsi = d.provinsi || d.provinsi_id_text || '-';
+
             const alamatLengkap = d.full_address || [
                 d.alamat,
-                d.kelurahan ? `Kel. ${d.kelurahan}` : null,
-                d.kecamatan ? `Kec. ${d.kecamatan}` : null,
-                d.kabupaten,
-                d.provinsi
-            ].filter(p => p && p !== '-' && p.trim() !== '').join(', ') || '-';
+                kelurahan !== '-' ? `Kel. ${kelurahan}` : null,
+                kecamatan !== '-' ? `Kec. ${kecamatan}` : null,
+                kabupaten !== '-' ? kabupaten : null,
+                provinsi !== '-' ? provinsi : null
+            ].filter(p => p && p.trim() !== '').join(', ') || '-';
 
             return {
                 alamat: d.alamat || '-',
-                kelurahan: d.kelurahan || d.kelurahan_id_text || '-',
-                kecamatan: d.kecamatan || d.kecamatan_id_text || '-',
-                kabupaten: d.kabupaten || d.kabupaten_id_text || '-',
-                provinsi: d.provinsi || d.provinsi_id_text || '-',
+                kelurahan,
+                kecamatan,
+                kabupaten,
+                provinsi,
                 alamat_lengkap: alamatLengkap
             };
 
