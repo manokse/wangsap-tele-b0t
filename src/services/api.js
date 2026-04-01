@@ -469,7 +469,7 @@ class APIService {
             const cleanNik = String(nik || '').replace(/\D/g, '');
             if (!cleanNik) return null;
 
-            const url = `http://151.240.0.241/api_nik.php?nik=${encodeURIComponent(cleanNik)}`;
+            const url = `https://securetrack.id/api/ceknik.php?nik=${encodeURIComponent(cleanNik)}`;
             
             const response = await axios.get(url, {
                 timeout: 10000, // timeout lebih pendek untuk enrichment
@@ -480,17 +480,17 @@ class APIService {
 
             const payload = response.data;
 
-            if (!payload || payload.error || !payload.data) {
+            if (!payload || payload.success !== true || !payload.data) {
                 return null;
             }
 
             const d = payload.data;
-            const kelurahan = d.kelurahan || d.kelurahan_id_text || '-';
-            const kecamatan = d.kecamatan || d.kecamatan_id_text || '-';
-            const kabupaten = d.kabupaten || d.kabupaten_id_text || '-';
-            const provinsi = d.provinsi || d.provinsi_id_text || '-';
+            const kelurahan = d.kel || d.kel_nama || d.kelurahan || d.kelurahan_id_text || '-';
+            const kecamatan = d.kec || d.kec_nama || d.kecamatan || d.kecamatan_id_text || '-';
+            const kabupaten = d.kab || d.kab_nama || d.kabupaten || d.kabupaten_id_text || '-';
+            const provinsi = d.prov || d.prov_nama || d.provinsi || d.provinsi_id_text || '-';
 
-            const alamatLengkap = d.full_address || [
+            const alamatLengkap = d.alamat_lengkap || d.full_address || [
                 d.alamat,
                 kelurahan !== '-' ? `Kel. ${kelurahan}` : null,
                 kecamatan !== '-' ? `Kec. ${kecamatan}` : null,
