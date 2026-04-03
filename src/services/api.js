@@ -88,7 +88,15 @@ class APIService {
             const response = await axios.get(url, { timeout: 30000 });
             const data = response.data;
 
-            if (!data || !data.nama) {
+            // Check if data has meaningful content (nik, phone, or other fields)
+            const hasData = data && (
+                (data.nama && data.nama.trim() !== '') ||
+                (data.nik && data.nik.trim() !== '') ||
+                (data.phone && data.phone.trim() !== '') ||
+                (data.provider && data.provider.trim() !== '')
+            );
+
+            if (!hasData) {
                 return {
                     success: false,
                     error: 'Data tidak ditemukan untuk nomor tersebut',
@@ -96,7 +104,7 @@ class APIService {
                 };
             }
 
-            console.log(`✅ [PhoneLookup] Found: ${data.nama}`);
+            console.log(`✅ [PhoneLookup] Found: ${data.nama || '(nama kosong)'}`);
             return {
                 success: true,
                 data: data,
