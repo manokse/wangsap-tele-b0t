@@ -755,10 +755,25 @@ const ownerCommands = {
 
         if (isNaN(cost) || cost < 0) {
             await bot.sendMessage(msg.chat.id,
-                `❌ Biaya harus angka positif`,
+                `❌ Biaya harus angka positif (dalam <b>token</b>, bukan Rupiah)`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
+        }
+
+        if (cost > 9999) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ Biaya terlalu tinggi (<b>${cost} token</b>)\n\n⚠️ Maksimal 9999 token per command\n<i>Ingat: jumlah dalam token, bukan Rupiah</i>`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        if (cost >= 100) {
+            await bot.sendMessage(msg.chat.id,
+                `⚠️ <b>Peringatan Biaya Tinggi</b>\n\nBiaya <b>${feature}</b> akan diset ke <b>${cost} token</b>\n<i>Pastikan ini dalam token, bukan Rupiah. Kirim ulang untuk konfirmasi.</i>`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
         }
 
         // Map feature name to database key

@@ -326,7 +326,8 @@ function updateTokenBalance(userId, amount) {
 }
 
 function deductTokens(userId, amount) {
-    prepare('UPDATE users SET token_balance = token_balance - ?, total_checks = total_checks + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?')
+    // Ensure balance never goes below 0
+    prepare('UPDATE users SET token_balance = MAX(0, token_balance - ?), total_checks = total_checks + 1, updated_at = CURRENT_TIMESTAMP WHERE user_id = ?')
         .run(amount, String(userId));
 }
 
