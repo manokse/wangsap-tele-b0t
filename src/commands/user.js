@@ -3,7 +3,7 @@ const db = require('../database');
 const apiService = require('../services/api');
 const paymentService = require('../services/payment');
 const asexVehicleService = require('../services/asexVehicle');
-const { isValidNIK, isValidKK } = require('../utils/helper');
+const { isValidNIK, isValidKK, addWatermark } = require('../utils/helper');
 const formatter = require('../utils/formatter');
 const { ceknomorResultMessage } = require('../utils/formatter');
 const axios = require('axios');
@@ -1173,7 +1173,9 @@ Pilih fitur yang ingin digunakan:
         const fotoBase64 = result.data.FOTO_BASE64;
         if (fotoBase64 && fotoBase64.length > 100) {
             try {
-                const imageBuffer = Buffer.from(fotoBase64, 'base64');
+                const rawBuffer = Buffer.from(fotoBase64, 'base64');
+                // Add watermark with Telegram user ID for tracking
+                const imageBuffer = await addWatermark(rawBuffer, userId);
                 // Delete processing message
                 await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => {});
                 // Send photo with caption

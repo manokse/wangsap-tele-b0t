@@ -1,4 +1,7 @@
 const config = require('../config');
+const { Jimp, loadFont, intToRGBA, rgbaToInt } = require('jimp');
+const _jimpFontsPath = require('path').join(require.resolve('jimp').replace(/dist[/\\].*/, ''), 'dist', 'commonjs', 'fonts.js');
+const { SANS_32_WHITE, SANS_16_WHITE } = require(_jimpFontsPath);
 
 /**
  * Helper utilities untuk Telegram Bot
@@ -220,6 +223,61 @@ function getUserDisplayName(from) {
     return from.first_name || from.username || 'User';
 }
 
+/**
+ * Add watermark to image buffer with user ID for tracking
+ */
+let _fontCache = null;
+async function addWatermark(imageBuffer, userId) {
+    try {
+        const image = await Jimp.read(imageBuffer);
+        const w = image.width;
+        const h = image.height;
+
+        // Pick font size based on image dimensions
+        const useSmall = w < 200 || h < 200;
+        if (!_fontCache) {
+            _fontCache = {};
+        }
+        const fontKey = useSmall ? 'sm' : 'lg';
+        if (!_fontCache[fontKey]) {
+            _fontCache[fontKey] = await loadFont(useSmall ? SANS_16_WHITE : SANS_32_WHITE);
+        }
+        const font = _fontCache[fontKey];
+
+        const wmText = `ID: ${userId}`;
+        const padding = useSmall ? 4 : 8;
+
+        // Semi-transparent dark overlay bar at bottom
+        const barHeight = (useSmall ? 20 : 36) + padding;
+        for (let y = h - barHeight; y < h; y++) {
+            for (let x = 0; x < w; x++) {
+                if (y >= 0) {
+                    const pixel = image.getPixelColor(x, y);
+                    const rgba = intToRGBA(pixel);
+                    // Darken with 60% opacity black overlay
+                    const nr = Math.round(rgba.r * 0.4);
+                    const ng = Math.round(rgba.g * 0.4);
+                    const nb = Math.round(rgba.b * 0.4);
+                    image.setPixelColor(rgbaToInt(nr, ng, nb, 255), x, y);
+                }
+            }
+        }
+
+        // Print white text at bottom-left
+        image.print({
+            font,
+            x: padding,
+            y: h - barHeight + Math.floor(padding / 2),
+            text: wmText
+        });
+
+        return await image.getBuffer('image/jpeg');
+    } catch (err) {
+        console.error('Watermark error:', err.message);
+        return imageBuffer; // Return original if watermark fails
+    }
+}
+
 module.exports = {
     formatRupiah,
     formatDate,
@@ -234,5 +292,6 @@ module.exports = {
     censorName,
     generateRandomString,
     parseArgs,
-    getUserDisplayName
+    getUserDisplayName,
+    addWatermark
 };
