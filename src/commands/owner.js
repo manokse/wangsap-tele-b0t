@@ -660,7 +660,7 @@ const ownerCommands = {
     async setmt(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, nama, kk, ceknomor, edabu, bpjstk, nopol, databocor, getcontact`,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, nama, kk, ceknomor, edabu, bpjstk, nopol, databocor, getcontact, nikfoto`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -677,7 +677,7 @@ const ownerCommands = {
             return;
         }
 
-        const validFeatures = ['all', 'ceknik', 'nama', 'kk', 'ceknomor', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact'];
+        const validFeatures = ['all', 'ceknik', 'nama', 'kk', 'ceknomor', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact', 'nikfoto'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -744,7 +744,7 @@ const ownerCommands = {
         const feature = args[0].toLowerCase();
         const cost = parseFloat(args[1]);
         
-        const validFeatures = ['ceknomor', 'ceknik', 'nama', 'kk', 'edabu', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata'];
+        const validFeatures = ['ceknomor', 'ceknik', 'nama', 'kk', 'edabu', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'nikfoto'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -775,7 +775,8 @@ const ownerCommands = {
             'nikplat': 'nikplat_cost',
             'databocor': 'databocor_cost',
             'getcontact': 'getcontact_cost',
-            'getdata': 'getdata_cost'
+            'getdata': 'getdata_cost',
+            'nikfoto': 'nikfoto_cost'
         };
         
         const settingKey = featureKeyMap[feature] || `${feature}_cost`;
@@ -846,6 +847,7 @@ const ownerCommands = {
         const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
         const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
         const getdataCost = parseFloat(settings.getdata_cost) || config.getdataCost;
+        const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
         
         const mtCeknik = settings.mt_ceknik === 'true' ? '🔴 ON' : '🟢 OFF';
         const mtNama = settings.mt_nama === 'true' ? '🔴 ON' : '🟢 OFF';
@@ -853,6 +855,7 @@ const ownerCommands = {
         const mtCeknomor = settings.mt_ceknomor === 'true' ? '🔴 ON' : '🟢 OFF';
         const mtEdabu = settings.mt_edabu === 'true' ? '🔴 ON' : '🟢 OFF';
         const mtNopol = settings.mt_nopol === 'true' ? '🔴 ON' : '🟢 OFF';
+        const mtNikfoto = settings.mt_nikfoto === 'true' ? '🔴 ON' : '🟢 OFF';
 
         let text = `<b>╔════════════════╗</b>\n<b>║</b>  ⚙️ <b>SETTINGS</b>\n<b>╚════════════════╝</b>\n`;
         
@@ -871,6 +874,7 @@ const ownerCommands = {
         text += `nikplat: ${nikplatCost}t\n`;
         text += `databocor: ${databocorCost}t\n`;
         text += `getcontact: ${getcontactCost}t\n`;
+        text += `nikfoto: ${nikfotoCost}t\n`;
         text += `getdata: ${getdataCost}t\n`;
         
         text += '\n<b>━━━ 🛠️ MAINTENANCE ━━━</b>\n';
@@ -880,6 +884,7 @@ const ownerCommands = {
         text += `ceknomor: ${mtCeknomor}\n`;
         text += `edabu: ${mtEdabu}\n`;
         text += `nopol: ${mtNopol}\n`;
+        text += `nikfoto: ${mtNikfoto}\n`;
 
         await bot.sendMessage(msg.chat.id, text, { 
             parse_mode: 'HTML',

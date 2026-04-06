@@ -177,6 +177,9 @@ Pilih fitur yang ingin digunakan:
                 { text: `📱 GetContact (${getcontactCost}t)`, callback_data: 'menu_getcontact' }
             ],
             [
+                { text: `📸 NikFoto (${parseInt(settings.nikfoto_cost) || config.nikfotoCost}t)`, callback_data: 'menu_nikfoto' }
+            ],
+            [
                 { text: '💳 Deposit', callback_data: 'goto_deposit' },
                 { text: '🪙 Saldo', callback_data: 'goto_saldo' }
             ]
@@ -321,6 +324,17 @@ Pilih fitur yang ingin digunakan:
         const updatedUser = db.getUser(userId);
         const remainingToken = updatedUser?.token_balance || 0;
 
+        // If API fails, try to get from cache (9999h)
+        if (!result.success) {
+            const cached = db.getCachedApiResponse('ceknomor', nomorInput, 9999 / 24);
+            if (cached && cached.response_data) {
+                console.log(`📦 Using cached data for ceknomor: ${nomorInput}`);
+                result.success = true;
+                result.data = cached.response_data;
+                result.fromCache = true;
+            }
+        }
+
         if (!result.success) {
             if (result.refund) {
                 db.refundTokens(userId, ceknomorCost);
@@ -336,7 +350,7 @@ Pilih fitur yang ingin digunakan:
         }
 
         db.updateApiRequest(requestId, 'success', 'Data ditemukan', null, null, result.data);
-        db.createTransaction(userId, 'check', ceknomorCost, `Cek nomor berhasil`, nomorInput, 'success');
+        db.createTransaction(userId, 'check', ceknomorCost, `Cek nomor berhasil${result.fromCache ? ' (cache)' : ''}`, nomorInput, 'success');
 
         const text = ceknomorResultMessage(result.data, ceknomorCost, requestId, remainingToken);
         await bot.editMessageText(text, {
@@ -409,7 +423,7 @@ Pilih fitur yang ingin digunakan:
 
         // If API fails, try to get from cache
         if (!result.success) {
-            const cached = db.getCachedApiResponse('ceknik', nik);
+            const cached = db.getCachedApiResponse('ceknik', nik, 9999 / 24);
             if (cached && cached.response_data) {
                 console.log(`📦 Using cached data for NIK: ${nik}`);
                 result = {
@@ -515,7 +529,7 @@ Pilih fitur yang ingin digunakan:
 
         // If API fails, try to get from cache
         if (!result.success) {
-            const cached = db.getCachedApiResponse('nama', namaQuery);
+            const cached = db.getCachedApiResponse('nama', namaQuery, 9999 / 24);
             if (cached && cached.response_data) {
                 console.log(`📦 Using cached data for nama: ${namaQuery}`);
                 result = {
@@ -885,7 +899,7 @@ Pilih fitur yang ingin digunakan:
 
         // If API fails, try to get from cache
         if (!result.success) {
-            const cached = db.getCachedApiResponse('kk', kkNumber);
+            const cached = db.getCachedApiResponse('kk', kkNumber, 9999 / 24);
             if (cached && cached.response_data) {
                 console.log(`📦 Using cached data for KK: ${kkNumber}`);
                 result = {
@@ -989,7 +1003,7 @@ Pilih fitur yang ingin digunakan:
 
         // If API fails, try to get from cache
         if (!result.success) {
-            const cached = db.getCachedApiResponse('edabu', nik);
+            const cached = db.getCachedApiResponse('edabu', nik, 9999 / 24);
             if (cached && cached.response_data) {
                 console.log(`📦 Using cached data for EDABU: ${nik}`);
                 result = {
@@ -1054,6 +1068,129 @@ Pilih fitur yang ingin digunakan:
             if (result.fromCache) {
                 textResult = `📦 <i>Data dari SIGMABOY</i>\n\n` + textResult;
             }
+            await bot.editMessageText(textResult, {
+                chat_id: msg.chat.id,
+                message_id: processingMsg.message_id,
+                parse_mode: 'HTML'
+            });
+        }
+    },
+
+    /**
+     * Command: /nikfoto <NIK>
+     * Cek NIK + Foto + Family Tree (ASEX cid2full)
+     */
+    async nikfoto(bot, msg, args) {
+        const userId = msg.from.id;
+        const firstName = msg.from.first_name || 'User';
+        const username = msg.from.username || null;
+
+        if (args.length === 0) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/nikfoto &lt;NIK&gt;</code>\nContoh: <code>/nikfoto 3171062704750002</code>`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const nik = args[0].replace(/\D/g, '');
+
+        if (!isValidNIK(nik)) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>NIK Tidak Valid</b>\n\nNIK harus <b>16 digit angka</b>`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const user = db.getOrCreateUser(userId, username, firstName);
+        const settings = db.getAllSettings();
+
+        if (settings.mt_nikfoto === 'true') {
+            await bot.sendMessage(msg.chat.id,
+                `⚠️ <b>MAINTENANCE</b>\n\nFitur <b>NIK FOTO</b> sedang dalam perbaikan.`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
+
+        if (user.token_balance < nikfotoCost) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Saldo Tidak Cukup</b>\n\n🪙 Saldo: <b>${user.token_balance} token</b>\n💰 Biaya: <b>${nikfotoCost} token</b>\n\nKetik <code>/deposit</code> untuk top up`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const requestId = db.createApiRequest(userId, 'nikfoto', nik, 'nikfoto', nikfotoCost);
+
+        const processingMsg = await bot.sendMessage(msg.chat.id,
+            formatter.processingMessage(nik, requestId),
+            { parse_mode: 'HTML' }
+        );
+
+        db.deductTokens(userId, nikfotoCost);
+
+        let result = await apiService.checkNIKFoto2(nik);
+        const updatedUser = db.getUser(userId);
+        const remainingToken = updatedUser?.token_balance || 0;
+
+        // If API fails, try to get from cache (99999h)
+        if (!result.success) {
+            const cached = db.getCachedApiResponse('nikfoto', nik, 99999 / 24);
+            if (cached && cached.response_data) {
+                console.log(`📦 Using cached data for NIK Foto: ${nik}`);
+                result = {
+                    success: true,
+                    data: cached.response_data,
+                    fromCache: true
+                };
+            }
+        }
+
+        if (!result.success) {
+            if (result.refund) {
+                db.refundTokens(userId, nikfotoCost);
+            }
+            db.updateApiRequest(requestId, 'failed', null, null, result.error);
+            db.createTransaction(userId, 'check', nikfotoCost, `Cek NIK Foto gagal`, nik, 'failed');
+
+            await bot.editMessageText(
+                `❌ <b>Gagal</b>\n\n${formatter.escapeHtml(result.error)}\n\n${result.refund ? `🪙 Token dikembalikan: <b>${nikfotoCost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`,
+                { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
+            );
+            return;
+        }
+
+        db.updateApiRequest(requestId, 'success', 'Data + Foto ditemukan', null, null, result.data);
+        db.createTransaction(userId, 'check', nikfotoCost, `Cek NIK Foto berhasil${result.fromCache ? ' (cache)' : ''}`, nik, 'success');
+
+        const textResult = formatter.nikfotoResultMessage(result.data, nikfotoCost, requestId, remainingToken);
+
+        // Check if photo available
+        const fotoBase64 = result.data.FOTO_BASE64;
+        if (fotoBase64 && fotoBase64.length > 100) {
+            try {
+                const imageBuffer = Buffer.from(fotoBase64, 'base64');
+                // Delete processing message
+                await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => {});
+                // Send photo with caption
+                await bot.sendPhoto(msg.chat.id, imageBuffer, {
+                    caption: textResult,
+                    parse_mode: 'HTML',
+                    reply_to_message_id: msg.message_id
+                });
+            } catch (imgErr) {
+                console.error('Error sending photo:', imgErr.message);
+                await bot.editMessageText(textResult, {
+                    chat_id: msg.chat.id,
+                    message_id: processingMsg.message_id,
+                    parse_mode: 'HTML'
+                });
+            }
+        } else {
             await bot.editMessageText(textResult, {
                 chat_id: msg.chat.id,
                 message_id: processingMsg.message_id,
@@ -1302,7 +1439,7 @@ Pilih fitur yang ingin digunakan:
 
             // If API fails, try to get from cache
             if (!result.success) {
-                const cached = db.getCachedApiResponse('bpjstk', nik);
+                const cached = db.getCachedApiResponse('bpjstk', nik, 9999 / 24);
                 if (cached && cached.response_data) {
                     result = {
                         success: true,

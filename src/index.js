@@ -27,7 +27,8 @@ const commandPrompts = {
     'nosin': '📝 Silakan kirim *Nomor Mesin*\nContoh: 11197460005377',
     'nikplat': '📝 Silakan kirim *NIK KTP pemilik*\nContoh: 3201381611850001',
     'databocor': '📝 Silakan kirim *query* (email/phone/name/domain) untuk dicari:',
-    'getcontact': '📝 Silakan kirim *Nomor HP* untuk lookup caller ID (contoh: 081234567890):'
+    'getcontact': '📝 Silakan kirim *Nomor HP* untuk lookup caller ID (contoh: 081234567890):',
+    'nikfoto': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK + Foto:'
 };
 
 // Banner

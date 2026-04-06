@@ -454,6 +454,51 @@ class APIService {
     }
 
     /**
+     * CEK NIK + FOTO (ASEX cid2full API)
+     * /nikfoto <nik>
+     */
+    async checkNIKFoto2(nik) {
+        try {
+            const url = `https://apiv3.asexapi.cloud/cid2full/?nik=${encodeURIComponent(nik)}`;
+
+            const response = await axios.get(url, {
+                timeout: 60000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+
+            const data = response.data;
+
+            if (!data.status) {
+                return {
+                    success: false,
+                    error: data.message || 'Data tidak ditemukan',
+                    refund: true
+                };
+            }
+
+            if (!data.data || Object.keys(data.data).length === 0) {
+                return {
+                    success: false,
+                    error: 'Data NIK tidak ditemukan',
+                    refund: true
+                };
+            }
+
+            return {
+                success: true,
+                data: data.data,
+                refund: false
+            };
+
+        } catch (error) {
+            console.error('NIKFoto API Error:', error.message);
+            return this.handleError(error);
+        }
+    }
+
+    /**
      * CEK BPJS KETENAGAKERJAAN (BPJSTK)
      * Mengecek data BPJS Ketenagakerjaan berdasarkan NIK
      */

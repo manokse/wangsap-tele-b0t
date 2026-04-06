@@ -95,6 +95,7 @@ function menuMessage() {
     const nikplatCost = parseInt(settings.nikplat_cost) || config.nikplatCost;
     const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
     const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
+    const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
 
     return `
 ${EMOJI.diamond} <b>${config.botName.toUpperCase()}</b>
@@ -114,6 +115,7 @@ ${LINE.sep}
  🪪 /nikplat • <code>${nikplatCost} token</code>
 🔓 /databocor • <code>${databocorCost} token</code>
 📱 /getcontact • <code>${getcontactCost} token</code>
+📸 /nikfoto • <code>${nikfotoCost} token</code>
 
 ${EMOJI.user} <b>MENU USER</b>
 ${LINE.sep}
@@ -147,6 +149,7 @@ function helpMessage() {
     const nikplatCost = parseInt(settings.nikplat_cost) || config.nikplatCost;
     const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
     const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
+    const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
     const getdataCost = parseFloat(settings.getdata_cost) || config.getdataCost;
     const riwayatDays = parseInt(settings.riwayat_days) || config.riwayatDays;
     const minTopup = parseInt(settings.min_topup) || config.minTopupToken;
@@ -209,7 +212,11 @@ Harga: ${formatRupiah(tokenPrice)}/token
    Biaya: <code>${getcontactCost} token</code>
    Data: Multi-source caller ID lookup
 
-📋 <b>/riwayat</b>
+� <b>/nikfoto</b> &lt;NIK&gt;
+   Biaya: <code>${nikfotoCost} token</code>
+   Data: Foto + Data Lengkap + Family Tree
+
+�📋 <b>/riwayat</b>
    Biaya: <code>GRATIS</code>
    Data: ${riwayatDays} hari terakhir
 
@@ -1387,6 +1394,65 @@ function processingMessage(query, requestId) {
 `;
 }
 
+// ═══════════════════════════════════════════
+// NIKFOTO RESULT MESSAGE (NIK + Photo + Family Tree)
+// ═══════════════════════════════════════════
+function nikfotoResultMessage(data, tokenUsed, requestId = '', remainingToken = 0) {
+    const d = data;
+    const genderMap = { 'M': 'Laki-Laki', 'F': 'Perempuan' };
+    const jk = genderMap[d.JENIS_KELAMIN] || d.JENIS_KELAMIN || '-';
+    let ttl = d.TANGGAL_LAHIR || '-';
+    if (ttl && ttl.includes(' ')) ttl = ttl.split(' ')[0];
+
+    let msg = `📸 <b>HASIL NIK + FOTO</b>
+${LINE.double}
+
+<b>━━━ 📋 IDENTITAS ━━━</b>
+🆔 NIK: <code>${d.NIK || '-'}</code>
+🪪 No. KK: <code>${d.NO_KK || '-'}</code>
+👤 Nama: <b>${escapeHtml(d.NAMA_LENGKAP || '-')}</b>
+📅 TTL: ${escapeHtml(d.TEMPAT_LAHIR || '-')}, ${escapeHtml(ttl)}
+⚧️ JK: ${escapeHtml(jk)}
+🕌 Agama: ${escapeHtml(d.AGAMA || '-')}
+🩸 Gol. Darah: ${escapeHtml(d.GOL_DARAH || '-')}
+🎓 Pendidikan: ${escapeHtml(d.PENDIDIKAN || '-')}
+💍 Status: ${escapeHtml(d.STATUS_PERNIKAHAN || '-')}
+👨‍👩‍👧 Hubungan: ${escapeHtml(d.STATUS_HUBUNGAN_KELUARGA || '-')}
+💼 Pekerjaan: ${escapeHtml(d.PEKERJAAN || '-')}
+
+<b>━━━ 🏠 ALAMAT ━━━</b>
+${escapeHtml(d.ALAMAT || '-')}
+RT/RW: ${d.RT || '-'}/${d.RW || '-'}
+🏘️ Kel: ${escapeHtml(d.KELURAHAN || '-')}
+🏙️ Kec: ${escapeHtml(d.KECAMATAN || '-')}
+🌆 Kab: ${escapeHtml(d.KOTA || '-')}
+🗺️ Prov: ${escapeHtml(d.PROVINSI || '-')}`;
+
+    // Family tree
+    const family = d.FAMILY_TREE || [];
+    if (family.length > 0) {
+        msg += `\n\n<b>━━━ 👨‍👩‍👧‍👦 KELUARGA (${family.length}) ━━━</b>`;
+        family.forEach((m, i) => {
+            const mGender = genderMap[m.JENIS_KELAMIN] || m.JENIS_KELAMIN || '-';
+            let mTtl = m.TANGGAL_LAHIR || '-';
+            if (mTtl && mTtl.includes(' ')) mTtl = mTtl.split(' ')[0];
+            msg += `\n\n${i + 1}. <b>${escapeHtml(m.NAMA_LENGKAP || '-')}</b>`;
+            msg += `\n   NIK: <code>${m.NIK || '-'}</code>`;
+            msg += `\n   TTL: ${escapeHtml(m.TEMPAT_LAHIR || '-')}, ${escapeHtml(mTtl)}`;
+            msg += `\n   JK: ${escapeHtml(mGender)}`;
+            msg += `\n   Hubungan: ${escapeHtml(m.STATUS_HUBUNGAN_KELUARGA || '-')}`;
+        });
+    }
+
+    msg += `
+
+${LINE.thin}
+🆔 ID: <code>${requestId}</code>
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
+`;
+    return msg;
+}
+
 module.exports = {
     EMOJI,
     LINE,
@@ -1398,6 +1464,7 @@ module.exports = {
     welcomeMessage,
     balanceMessage,
     nikResultMessage,
+    nikfotoResultMessage,
     ceknomorResultMessage,
     namaResultMessage,
     kkResultMessage,

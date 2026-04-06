@@ -63,6 +63,7 @@ module.exports = {
     nosinCost: parseInt(process.env.NOSIN_COST) || 3,
     nikplatCost: parseInt(process.env.NIKPLAT_COST) || parseInt(process.env.NIKVEHICLE_COST) || 3,
     nikvehicleCost: parseInt(process.env.NIKPLAT_COST) || parseInt(process.env.NIKVEHICLE_COST) || 3,
+    nikfotoCost: parseInt(process.env.NIKFOTO_COST) || 5,
     databocorCost: parseInt(process.env.DATABOCOR_COST) || 3,
     riwayatCost: parseFloat(process.env.RIWAYAT_COST) || 0,
     getdataCost: parseFloat(process.env.GETDATA_COST) || 0.5,
