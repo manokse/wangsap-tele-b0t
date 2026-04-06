@@ -1,5 +1,5 @@
 const config = require('../config');
-const { Jimp, loadFont, intToRGBA, rgbaToInt } = require('jimp');
+const { Jimp, loadFont, measureText, BlendMode } = require('jimp');
 const _jimpFontsPath = require('path').join(require.resolve('jimp').replace(/dist[/\\].*/, ''), 'dist', 'commonjs', 'fonts.js');
 const { SANS_32_WHITE, SANS_16_WHITE } = require(_jimpFontsPath);
 
@@ -224,7 +224,8 @@ function getUserDisplayName(from) {
 }
 
 /**
- * Add watermark to image buffer with user ID for tracking
+ * Add diagonal tiled watermark to an image buffer.
+ * Watermark text = WATERMARK_TEXT from .env + user ID.
  */
 let _fontCache = null;
 async function addWatermark(imageBuffer, userId) {
@@ -233,48 +234,61 @@ async function addWatermark(imageBuffer, userId) {
         const w = image.width;
         const h = image.height;
 
-        // Pick font size based on image dimensions
-        const useSmall = w < 200 || h < 200;
-        if (!_fontCache) {
-            _fontCache = {};
-        }
+        // Pick font based on image size
+        const useSmall = w < 300 || h < 300;
+        if (!_fontCache) _fontCache = {};
         const fontKey = useSmall ? 'sm' : 'lg';
         if (!_fontCache[fontKey]) {
             _fontCache[fontKey] = await loadFont(useSmall ? SANS_16_WHITE : SANS_32_WHITE);
         }
         const font = _fontCache[fontKey];
+        const fontH = useSmall ? 16 : 32;
 
-        const wmText = `ID: ${userId}`;
-        const padding = useSmall ? 4 : 8;
+        // Compose the text: custom label from .env + tracking ID
+        const label = (config.watermarkText || 'CONFIDENTIAL').trim();
+        const wmText = `${label}  ${userId}`;
 
-        // Semi-transparent dark overlay bar at bottom
-        const barHeight = (useSmall ? 20 : 36) + padding;
-        for (let y = h - barHeight; y < h; y++) {
-            for (let x = 0; x < w; x++) {
-                if (y >= 0) {
-                    const pixel = image.getPixelColor(x, y);
-                    const rgba = intToRGBA(pixel);
-                    // Darken with 60% opacity black overlay
-                    const nr = Math.round(rgba.r * 0.4);
-                    const ng = Math.round(rgba.g * 0.4);
-                    const nb = Math.round(rgba.b * 0.4);
-                    image.setPixelColor(rgbaToInt(nr, ng, nb, 255), x, y);
-                }
+        // Measure text width so tile fits exactly
+        const textW = measureText(font, wmText);
+        const padX = useSmall ? 16 : 28;
+        const padY = useSmall ? 8 : 14;
+        const tileW = textW + padX * 2;
+        const tileH = fontH + padY * 2;
+
+        // Create tile: transparent bg, white text
+        const tile = new Jimp({ width: tileW, height: tileH, color: 0x00000000 });
+        tile.print({ font, x: padX, y: padY, text: wmText });
+
+        // Rotate -30 degrees (Jimp rotate = counter-clockwise, so 330 = -30)
+        tile.rotate(330);
+        const rotW = tile.width;
+        const rotH = tile.height;
+
+        // Gap between tiled repetitions
+        const gapX = useSmall ? 20 : 40;
+        const gapY = useSmall ? 16 : 30;
+        const stepX = rotW + gapX;
+        const stepY = rotH + gapY;
+
+        // Tile diagonally across entire image
+        for (let row = -1; row * stepY < h + rotH; row++) {
+            // Stagger odd rows by half stepX for a proper diagonal grid
+            const offsetX = (row % 2 !== 0) ? Math.floor(stepX / 2) : 0;
+            for (let col = -1; col * stepX < w + rotW; col++) {
+                const px = col * stepX + offsetX - Math.floor(rotW / 2);
+                const py = row * stepY - Math.floor(rotH / 2);
+                image.composite(tile, px, py, {
+                    mode: BlendMode.SRC_OVER,
+                    opacitySource: 0.38,
+                    opacityDest: 1
+                });
             }
         }
-
-        // Print white text at bottom-left
-        image.print({
-            font,
-            x: padding,
-            y: h - barHeight + Math.floor(padding / 2),
-            text: wmText
-        });
 
         return await image.getBuffer('image/jpeg');
     } catch (err) {
         console.error('Watermark error:', err.message);
-        return imageBuffer; // Return original if watermark fails
+        return imageBuffer;
     }
 }
 
