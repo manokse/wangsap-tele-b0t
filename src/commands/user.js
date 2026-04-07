@@ -1178,9 +1178,17 @@ Pilih fitur yang ingin digunakan:
                 const imageBuffer = await addWatermark(rawBuffer, userId);
                 // Delete processing message
                 await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => {});
-                // Send photo with caption
+                // Short caption to avoid Telegram 1024-char caption limit
+                const _d = result.data;
+                const _ttl = (_d.TANGGAL_LAHIR || '-').split(' ')[0];
+                const shortCaption = `📸 <b>NIK + FOTO</b>\n👤 <b>${formatter.escapeHtml(_d.NAMA_LENGKAP || '-')}</b>\n🆔 <code>${_d.NIK || nik}</code>\n📅 ${formatter.escapeHtml(_d.TEMPAT_LAHIR || '-')}, ${formatter.escapeHtml(_ttl)}`;
                 await bot.sendPhoto(msg.chat.id, imageBuffer, {
-                    caption: textResult,
+                    caption: shortCaption,
+                    parse_mode: 'HTML',
+                    reply_to_message_id: msg.message_id
+                });
+                // Send full detail as follow-up message
+                await bot.sendMessage(msg.chat.id, textResult, {
                     parse_mode: 'HTML',
                     reply_to_message_id: msg.message_id
                 });

@@ -459,7 +459,7 @@ class APIService {
      */
     async checkNIKFoto2(nik) {
         try {
-            const url = `https://apiv3.asexapi.cloud/cid2full/?nik=${encodeURIComponent(nik)}`;
+            const url = `https://apiv3.asexapi.cloud/cid2full/?nik=${encodeURIComponent(nik)}&api_key=${config.nikfotoApiKey}`;
 
             const response = await axios.get(url, {
                 timeout: 60000,

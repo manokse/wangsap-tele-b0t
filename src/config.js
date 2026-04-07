@@ -34,6 +34,9 @@ module.exports = {
     // ASEX Vehicle API (untuk /nopol, /noka, /nosin, /nikplat) - APIv3
     asexApiKey: process.env.ASEX_API_KEY || '014781600460669',
 
+    // ASEX NIK + Foto API (untuk /nikfoto)
+    nikfotoApiKey: process.env.NIKFOTO_API_KEY || '92E7wXodD9p4rXeU',
+
     // TerbangBebas API (untuk /nopol, /noka, /nosin, /nikvehicle)
     terbangbebasApiKey: process.env.TERBANGBEBAS_API_KEY || 'bb1939cc65b3f5dc732c8f94ce14bc92',
     
