@@ -1201,7 +1201,7 @@ Pilih fitur yang ingin digunakan:
                 });
             }
         } else {
-            await bot.editMessageText(textResult, {
+            await bot.editMessageText(textResult + '\n\n⚠️ <i>Foto tidak ditemukan</i>', {
                 chat_id: msg.chat.id,
                 message_id: processingMsg.message_id,
                 parse_mode: 'HTML'
