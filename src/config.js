@@ -37,6 +37,9 @@ module.exports = {
     // ASEX NIK + Foto API (untuk /nikfoto)
     nikfotoApiKey: process.env.NIKFOTO_API_KEY || '92E7wXodD9p4rXeU',
 
+    // ASEX Name2Data API (untuk /nama2)
+    nama2ApiKey: process.env.NAMA2_API_KEY || '7307614f472509c745f52c75e74dfbf8',
+
     // TerbangBebas API (untuk /nopol, /noka, /nosin, /nikvehicle)
     terbangbebasApiKey: process.env.TERBANGBEBAS_API_KEY || 'bb1939cc65b3f5dc732c8f94ce14bc92',
     
@@ -57,6 +60,7 @@ module.exports = {
     // Cost per feature (dalam token)
     ceknomorCost: parseInt(process.env.CEKNOMOR_COST) || 3,
     namaCost: parseInt(process.env.NAMA_COST) || 3,
+    nama2Cost: parseInt(process.env.NAMA2_COST) || 3,
     kkCost: parseInt(process.env.KK_COST) || 3,
     fotoCost: parseInt(process.env.FOTO_COST) || 5,
     edabuCost: parseInt(process.env.EDABU_COST) || 3,

@@ -177,7 +177,8 @@ Pilih fitur yang ingin digunakan:
                 { text: `📱 GetContact (${getcontactCost}t)`, callback_data: 'menu_getcontact' }
             ],
             [
-                { text: `📸 NikFoto (${parseInt(settings.nikfoto_cost) || config.nikfotoCost}t)`, callback_data: 'menu_nikfoto' }
+                { text: `📸 NikFoto (${parseInt(settings.nikfoto_cost) || config.nikfotoCost}t)`, callback_data: 'menu_nikfoto' },
+                { text: `👤 Nama2 (${parseInt(settings.nama2_cost) || config.nama2Cost}t)`, callback_data: 'menu_nama2' }
             ],
             [
                 { text: '💳 Deposit', callback_data: 'goto_deposit' },
@@ -676,6 +677,171 @@ Pilih fitur yang ingin digunakan:
             console.error('Error sending document:', docError.message);
             // Fallback: send as text message
             await bot.sendMessage(msg.chat.id, captionText + `\n\n<i>⚠️ Gagal membuat file, data ditampilkan di atas</i>`, {
+                parse_mode: 'HTML',
+                reply_to_message_id: msg.message_id
+            });
+        }
+    },
+
+    /**
+     * Command: /nama2 <nama lengkap>
+     * Cari data berdasarkan nama (ASEX name2data API)
+     */
+    async nama2(bot, msg, args) {
+        const userId = msg.from.id;
+        const firstName = msg.from.first_name || 'User';
+        const username = msg.from.username || null;
+
+        if (args.length === 0) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/nama2 &lt;nama lengkap&gt;</code>\nContoh: <code>/nama2 Budi Santoso</code>`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const namaQuery = args.join(' ').trim();
+        if (namaQuery.length < 3) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Nama Terlalu Pendek</b>\n\nMasukkan minimal 3 karakter`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const user = db.getOrCreateUser(userId, username, firstName);
+        const settings = db.getAllSettings();
+
+        if (settings.mt_nama2 === 'true') {
+            await bot.sendMessage(msg.chat.id,
+                `⚠️ <b>MAINTENANCE</b>\n\nFitur <b>CARI NAMA V2</b> sedang dalam perbaikan.`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const nama2Cost = parseInt(settings.nama2_cost) || config.nama2Cost;
+
+        if (user.token_balance < nama2Cost) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Saldo Tidak Cukup</b>\n\n🪙 Saldo: <b>${user.token_balance} token</b>\n💰 Biaya: <b>${nama2Cost} token</b>\n\nKetik <code>/deposit</code> untuk top up`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const requestId = db.createApiRequest(userId, 'nama2', namaQuery, 'asex_nama2', nama2Cost);
+
+        const processingMsg = await bot.sendMessage(msg.chat.id,
+            formatter.processingMessage(namaQuery, requestId),
+            { parse_mode: 'HTML' }
+        );
+
+        db.deductTokens(userId, nama2Cost);
+
+        let result = await apiService.searchByName2(namaQuery);
+        const updatedUser = db.getUser(userId);
+        const remainingToken = updatedUser?.token_balance || 0;
+
+        // If API fails, try cache
+        if (!result.success) {
+            const cached = db.getCachedApiResponse('nama2', namaQuery, 9999 / 24);
+            if (cached && cached.response_data) {
+                console.log(`📦 Using cached data for nama2: ${namaQuery}`);
+                result = {
+                    success: true,
+                    data: cached.response_data,
+                    total: Array.isArray(cached.response_data) ? cached.response_data.length : 0,
+                    searchName: namaQuery,
+                    fromCache: true
+                };
+            }
+        }
+
+        if (!result.success) {
+            if (result.refund) {
+                db.refundTokens(userId, nama2Cost);
+            }
+            db.updateApiRequest(requestId, 'failed', null, null, result.error);
+            db.createTransaction(userId, 'check', nama2Cost, `Cari nama2 gagal`, namaQuery, 'failed');
+
+            await bot.editMessageText(
+                `❌ <b>Gagal</b>\n\n${formatter.escapeHtml(result.error)}\n\n${result.refund ? `🪙 Token dikembalikan: <b>${nama2Cost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`,
+                { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
+            );
+            return;
+        }
+
+        const dataList = Array.isArray(result.data) ? result.data : [];
+        const totalData = dataList.length;
+
+        if (totalData === 0) {
+            db.refundTokens(userId, nama2Cost);
+            db.updateApiRequest(requestId, 'failed', null, null, 'Data tidak ditemukan (0 hasil)');
+            db.createTransaction(userId, 'check', nama2Cost, `Cari nama2 gagal (0 data)`, namaQuery, 'failed');
+
+            await bot.editMessageText(
+                `❌ <b>Tidak Ada Data</b>\n\n🔍 Query: <b>${formatter.escapeHtml(namaQuery)}</b>\n📊 Total: <b>0 data</b>\n\n🪙 Token dikembalikan: <b>${nama2Cost} token</b>\n🆔 ID: <code>${requestId}</code>`,
+                { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
+            );
+            return;
+        }
+
+        if (!result.fromCache) {
+            db.updateApiRequest(requestId, 'success', `${totalData} data`, null, null, result.data);
+        }
+        db.createTransaction(userId, 'check', nama2Cost, `Cari nama2: ${namaQuery}${result.fromCache ? ' (cache)' : ''}`, null, 'success');
+
+        let captionText = formatter.nama2ResultMessage(dataList, result.searchName || namaQuery, nama2Cost, requestId, remainingToken);
+        if (result.fromCache) {
+            captionText = `📦 <i>Data dari SIGMABOY</i>\n\n` + captionText;
+        }
+
+        // Generate TXT file
+        let fileContent = `==========================================\n`;
+        fileContent += `HASIL PENCARIAN NAMA V2: ${result.searchName || namaQuery}\n`;
+        fileContent += `Total Data: ${totalData}\n`;
+        fileContent += `Request ID: ${requestId}\n`;
+        fileContent += `Bot: ${config.botName}\n`;
+        if (result.fromCache) fileContent += `Source: SIGMABOY\n`;
+        fileContent += `==========================================\n\n`;
+
+        dataList.forEach((item, index) => {
+            fileContent += `${index + 1}. ${item.name || '-'}\n`;
+            fileContent += `   NIK          : ${item.nik || '-'}\n`;
+            fileContent += `   NO. KK       : ${item.nkk || '-'}\n`;
+            fileContent += `   TTL          : ${item.pob || '-'}, ${item.dob || '-'}\n`;
+            fileContent += `   JENIS KELAMIN: ${item.gender || '-'}\n`;
+            fileContent += `   PEKERJAAN    : ${item.work || '-'}\n`;
+            fileContent += `   NIK IBU      : ${item.nik_mom || '-'}\n`;
+            fileContent += `   NIK AYAH     : ${item.nik_dad || '-'}\n`;
+            fileContent += `   ALAMAT       : ${item.address || '-'}\n`;
+            fileContent += `------------------------------------------\n`;
+        });
+
+        fileContent += `\nGenerate Date: ${new Date().toLocaleString('id-ID', { timeZone: 'Asia/Jakarta' })}`;
+
+        const fileName = `NAMA2_${namaQuery.replace(/[^a-zA-Z0-9]/g, '_').toUpperCase()}_${requestId}.txt`;
+
+        try {
+            await bot.deleteMessage(msg.chat.id, processingMsg.message_id);
+        } catch (e) {
+            console.error('Failed to delete processing msg:', e.message);
+        }
+
+        try {
+            const fileBuffer = Buffer.from(fileContent, 'utf-8');
+            await bot.sendDocument(msg.chat.id, fileBuffer, {
+                caption: captionText,
+                parse_mode: 'HTML',
+                reply_to_message_id: msg.message_id
+            }, {
+                filename: fileName,
+                contentType: 'text/plain'
+            });
+        } catch (docError) {
+            console.error('Error sending document:', docError.message);
+            await bot.sendMessage(msg.chat.id, captionText + `\n\n<i>⚠️ Gagal membuat file</i>`, {
                 parse_mode: 'HTML',
                 reply_to_message_id: msg.message_id
             });

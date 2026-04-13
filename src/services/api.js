@@ -250,6 +250,57 @@ class APIService {
     }
 
     /**
+     * CARI NAMA V2 (ASEX name2data API)
+     * /nama2 <nama>
+     */
+    async searchByName2(name) {
+        try {
+            const url = `https://apiv3.asexapi.cloud/name2data/?api_key=${config.nama2ApiKey}&name=${encodeURIComponent(name)}`;
+
+            console.log(`🔍 [ASEX] Searching name2: ${name}`);
+
+            const response = await axios.get(url, {
+                timeout: 60000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+
+            const data = response.data;
+
+            if (!data.status) {
+                return {
+                    success: false,
+                    error: data.message || 'Data tidak ditemukan',
+                    refund: true
+                };
+            }
+
+            if (!data.data || data.data.length === 0) {
+                return {
+                    success: false,
+                    error: 'Tidak ada data yang cocok dengan nama tersebut',
+                    refund: true
+                };
+            }
+
+            console.log(`✅ [ASEX] Name2 search found ${data.total || data.data.length} results`);
+
+            return {
+                success: true,
+                data: data.data,
+                total: data.total || data.data.length,
+                searchName: name,
+                refund: false
+            };
+
+        } catch (error) {
+            console.error('ASEX Name2 API Error:', error.message);
+            return this.handleError(error);
+        }
+    }
+
+    /**
      * CEK KARTU KELUARGA (Archi3 Identity API)
      */
     async checkKK(kkNumber) {

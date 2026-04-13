@@ -660,7 +660,7 @@ const ownerCommands = {
     async setmt(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, nama, kk, ceknomor, edabu, bpjstk, nopol, databocor, getcontact, nikfoto`,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, nama, nama2, kk, ceknomor, edabu, bpjstk, nopol, databocor, getcontact, nikfoto`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -677,7 +677,7 @@ const ownerCommands = {
             return;
         }
 
-        const validFeatures = ['all', 'ceknik', 'nama', 'kk', 'ceknomor', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact', 'nikfoto'];
+        const validFeatures = ['all', 'ceknik', 'nama', 'nama2', 'kk', 'ceknomor', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact', 'nikfoto'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -744,7 +744,7 @@ const ownerCommands = {
         const feature = args[0].toLowerCase();
         const cost = parseFloat(args[1]);
         
-        const validFeatures = ['ceknomor', 'ceknik', 'nama', 'kk', 'edabu', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'nikfoto'];
+        const validFeatures = ['ceknomor', 'ceknik', 'nama', 'nama2', 'kk', 'edabu', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'nikfoto'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -781,6 +781,7 @@ const ownerCommands = {
             'ceknomor': 'ceknomor_cost',
             'ceknik': 'check_cost',
             'nama': 'nama_cost',
+            'nama2': 'nama2_cost',
             'kk': 'kk_cost',
             'edabu': 'edabu_cost',
             'bpjstk': 'bpjstk_cost',

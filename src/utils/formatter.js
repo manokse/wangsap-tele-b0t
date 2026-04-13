@@ -96,6 +96,7 @@ function menuMessage() {
     const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
     const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
     const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
+    const nama2Cost = parseInt(settings.nama2_cost) || config.nama2Cost;
 
     return `
 ${EMOJI.diamond} <b>${config.botName.toUpperCase()}</b>
@@ -116,6 +117,7 @@ ${LINE.sep}
 🔓 /databocor • <code>${databocorCost} token</code>
 📱 /getcontact • <code>${getcontactCost} token</code>
 📸 /nikfoto • <code>${nikfotoCost} token</code>
+👤 /nama2 • <code>${nama2Cost} token</code>
 
 ${EMOJI.user} <b>MENU USER</b>
 ${LINE.sep}
@@ -150,6 +152,7 @@ function helpMessage() {
     const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
     const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
     const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
+    const nama2Cost = parseInt(settings.nama2_cost) || config.nama2Cost;
     const getdataCost = parseFloat(settings.getdata_cost) || config.getdataCost;
     const riwayatDays = parseInt(settings.riwayat_days) || config.riwayatDays;
     const minTopup = parseInt(settings.min_topup) || config.minTopupToken;
@@ -212,11 +215,15 @@ Harga: ${formatRupiah(tokenPrice)}/token
    Biaya: <code>${getcontactCost} token</code>
    Data: Multi-source caller ID lookup
 
-� <b>/nikfoto</b> &lt;NIK&gt;
+📸 <b>/nikfoto</b> &lt;NIK&gt;
    Biaya: <code>${nikfotoCost} token</code>
    Data: Foto + Data Lengkap + Family Tree
 
-�📋 <b>/riwayat</b>
+👤 <b>/nama2</b> &lt;Nama&gt;
+   Biaya: <code>${nama2Cost} token</code>
+   Data: Cari NIK dari Nama (Sumber 2)
+
+📋 <b>/riwayat</b>
    Biaya: <code>GRATIS</code>
    Data: ${riwayatDays} hari terakhir
 
@@ -395,6 +402,27 @@ ${LINE.double}
 ${LINE.thin}
 🆔 ID: <code>${requestId}</code>
 🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
+`;
+}
+
+/**
+ * Format hasil cari nama V2 (ASEX name2data)
+ */
+function nama2ResultMessage(data, searchName, tokenUsed, requestId = '', remainingToken = 0) {
+    const total = data.length || 0;
+
+    return `
+${EMOJI.user} <b>HASIL CARI NAMA V2</b>
+${LINE.double}
+
+\ud83d\udd0d Query: <b>${escapeHtml(searchName)}</b>
+\ud83d\udcca Total: <b>${total} data</b>
+
+<i>\ud83d\udcce File detail terlampir</i>
+
+${LINE.thin}
+\ud83c\udd94 ID: <code>${requestId}</code>
+\ud83e\ude99 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
 `;
 }
 
@@ -1467,6 +1495,7 @@ module.exports = {
     nikfotoResultMessage,
     ceknomorResultMessage,
     namaResultMessage,
+    nama2ResultMessage,
     kkResultMessage,
     edabuResultMessage,
     bpjstkResultMessage,
