@@ -87,7 +87,8 @@ function menuMessage() {
     const namaCost = parseInt(settings.nama_cost) || config.namaCost;
     const kkCost = parseInt(settings.kk_cost) || config.kkCost;
     const ceknomorCost = parseInt(settings.ceknomor_cost) || config.ceknomorCost;
-    const edabuCost = parseInt(settings.edabu_cost) || config.edabuCost;
+        const checkV2Cost = parseInt(settings.checkv2_cost) || config.checkV2Cost;
+        const edabuCost = parseInt(settings.edabu_cost) || config.edabuCost;
     const bpjstkCost = parseInt(settings.bpjstk_cost) || config.bpjstkCost || 3;
     const nopolCost = parseInt(settings.nopol_cost) || config.nopolCost;
     const nokaCost = parseInt(settings.noka_cost) || config.nokaCost;
@@ -106,6 +107,7 @@ ${EMOJI.search} <b>MENU PENCARIAN</b>
 ${LINE.sep}
 📱 /ceknomor • <code>${ceknomorCost} token</code>
 🔍 /ceknik • <code>${checkCost} token</code>
+    🆔 /ceknikv2 • <code>${checkV2Cost} token</code>
 👤 /nama • <code>${namaCost} token</code>
 👨‍👩‍👧‍👦 /kk • <code>${kkCost} token</code>
 🏥 /edabu • <code>${edabuCost} token</code>
@@ -141,6 +143,7 @@ function helpMessage() {
     const tokenPrice = parseInt(settings.token_price) || config.tokenPrice;
     const ceknomorCost = parseInt(settings.ceknomor_cost) || config.ceknomorCost;
     const checkCost = parseInt(settings.check_cost) || config.checkCost;
+    const checkV2Cost = parseInt(settings.checkv2_cost) || config.checkV2Cost;
     const namaCost = parseInt(settings.nama_cost) || config.namaCost;
     const kkCost = parseInt(settings.kk_cost) || config.kkCost;
     const edabuCost = parseInt(settings.edabu_cost) || config.edabuCost;
@@ -174,6 +177,10 @@ Harga: ${formatRupiah(tokenPrice)}/token
 🔍 <b>/ceknik</b> &lt;NIK&gt;
    Biaya: <code>${checkCost} token</code>
    Data: Nama, TTL, Alamat
+
+🆔 <b>/ceknikv2</b> &lt;NIK&gt;
+    Biaya: <code>${checkV2Cost} token</code>
+    Data: Nama, TTL, Alamat (V2)
 
 👤 <b>/nama</b> &lt;Nama&gt;
    Biaya: <code>${namaCost} token</code>

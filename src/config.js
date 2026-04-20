@@ -56,6 +56,7 @@ module.exports = {
     tokenPrice: parseInt(process.env.TOKEN_PRICE) || 5000,
     minTopupToken: parseInt(process.env.MIN_TOPUP_TOKEN) || 10,
     checkCost: parseInt(process.env.CHECK_COST) || 2,
+    checkV2Cost: parseInt(process.env.CHECKV2_COST) || 2,
     
     // Cost per feature (dalam token)
     ceknomorCost: parseInt(process.env.CEKNOMOR_COST) || 3,

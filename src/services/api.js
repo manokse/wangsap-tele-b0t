@@ -190,6 +190,77 @@ class APIService {
     }
 
     /**
+     * CEK NIK V2 (SecureTrack API)
+     */
+    async checkNIKV2(nik) {
+        try {
+            const cleanNik = String(nik || '').replace(/\D/g, '');
+            const url = `https://securetrack.id/api/ceknik.php?nik=${encodeURIComponent(cleanNik)}`;
+
+            console.log(`🔍 [SecureTrack] Checking NIK V2: ${cleanNik}`);
+
+            const response = await axios.get(url, {
+                timeout: 60000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+
+            const payload = response.data;
+            if (!payload || payload.success !== true || !payload.data) {
+                return {
+                    success: false,
+                    error: payload?.message || 'Data tidak ditemukan',
+                    refund: true
+                };
+            }
+
+            const d = payload.data;
+            const normalized = {
+                nik: d.nomor_induk || cleanNik,
+                NIK: d.nomor_induk || cleanNik,
+                KK: '-',
+                nama_lengkap: d.nama_lengkap_user || '-',
+                NAMA: d.nama_lengkap_user || '-',
+                tanggal_lahir: d.tgl_lahir || '-',
+                jenis_kelamin: d.gender || '-',
+                JENIS_KELAMIN: d.gender || '-',
+                alamat: d.alamat || '-',
+                ALAMAT: d.alamat || '-',
+                no_rt: d.rt ?? '-',
+                no_rw: d.rw ?? '-',
+                kelurahan: d.kel_nama || d.kel || '-',
+                kecamatan: d.kec_nama || d.kec || '-',
+                kabupaten: d.kab_nama || d.kab || '-',
+                provinsi: d.prov_nama || d.prov || '-',
+                agama: '-',
+                status_kawin: '-',
+                hubungan: '-',
+                gol_darah: '-',
+                pekerjaan: '-',
+                pendidikan: '-',
+                nama_ayah: '-',
+                nama_ibu: '-',
+                full_address: d.alamat_lengkap || '-',
+                meta_cached: payload.meta?.cached,
+                meta_cache_age: payload.meta?.cache_age
+            };
+
+            console.log(`✅ [SecureTrack] NIK V2 found: ${normalized.nama_lengkap}`);
+
+            return {
+                success: true,
+                data: normalized,
+                refund: false
+            };
+
+        } catch (error) {
+            console.error('SecureTrack NIK V2 API Error:', error.message);
+            return this.handleError(error);
+        }
+    }
+
+    /**
      * CARI NAMA (Archi3 Identity API)
      */
     async searchByName(name, page = 1) {

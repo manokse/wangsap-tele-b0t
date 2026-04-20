@@ -155,6 +155,9 @@ Pilih fitur yang ingin digunakan:
             ],
             [
                 { text: `🔍 CekNIK (${checkCost}t)`, callback_data: 'menu_ceknik' },
+                { text: `🆔 CekNIK V2 (${parseInt(settings.checkv2_cost) || config.checkV2Cost}t)`, callback_data: 'menu_ceknikv2' }
+            ],
+            [
                 { text: `👤 Nama (${namaCost}t)`, callback_data: 'menu_nama' }
             ],
             [
@@ -467,6 +470,116 @@ Pilih fitur yang ingin digunakan:
             message_id: processingMsg.message_id,
             parse_mode: 'HTML'
         });
+    },
+
+    /**
+     * Command: /ceknikv2 <NIK>
+     */
+    async ceknikv2(bot, msg, args) {
+        const userId = msg.from.id;
+        const firstName = msg.from.first_name || 'User';
+        const username = msg.from.username || null;
+
+        if (args.length === 0) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/ceknikv2 &lt;NIK&gt;</code>\nContoh: <code>/ceknikv2 1234567890123456</code>`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const nik = args[0].replace(/\D/g, '');
+        if (!isValidNIK(nik)) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>NIK Tidak Valid</b>\n\nNIK harus <b>16 digit angka</b>`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const user = db.getOrCreateUser(userId, username, firstName);
+        const settings = db.getAllSettings();
+
+        if (settings.mt_ceknikv2 === 'true') {
+            await bot.sendMessage(msg.chat.id,
+                `⚠️ <b>MAINTENANCE</b>\n\nFitur <b>CEK NIK V2</b> sedang dalam perbaikan.`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const checkV2Cost = parseInt(settings.checkv2_cost) || config.checkV2Cost;
+        if (user.token_balance < checkV2Cost) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Saldo Tidak Cukup</b>\n\n🪙 Saldo: <b>${user.token_balance} token</b>\n💰 Biaya: <b>${checkV2Cost} token</b>\n\nKetik <code>/deposit</code> untuk top up`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const requestId = db.createApiRequest(userId, 'ceknikv2', nik, 'nikv2', checkV2Cost);
+        const processingMsg = await bot.sendMessage(msg.chat.id,
+            formatter.processingMessage(`${nik} (V2)`, requestId),
+            { parse_mode: 'HTML' }
+        );
+
+        db.deductTokens(userId, checkV2Cost);
+
+        let result = await apiService.checkNIKV2(nik);
+        const updatedUser = db.getUser(userId);
+        const remainingToken = updatedUser?.token_balance || 0;
+
+        if (!result.success) {
+            const cached = db.getCachedApiResponse('ceknikv2', nik, 9999 / 24);
+            if (cached && cached.response_data) {
+                console.log(`📦 Using cached data for NIK V2: ${nik}`);
+                result = {
+                    success: true,
+                    data: cached.response_data,
+                    fromCache: true
+                };
+            }
+        }
+
+        if (!result.success) {
+            if (result.refund) {
+                db.refundTokens(userId, checkV2Cost);
+            }
+            db.updateApiRequest(requestId, 'failed', null, null, result.error);
+            db.createTransaction(userId, 'check', checkV2Cost, `Cek NIK V2 gagal`, nik, 'failed');
+
+            await bot.editMessageText(
+                `❌ <b>Gagal</b>\n\n${formatter.escapeHtml(result.error)}\n\n${result.refund ? `🪙 Token dikembalikan: <b>${checkV2Cost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`,
+                {
+                    chat_id: msg.chat.id,
+                    message_id: processingMsg.message_id,
+                    parse_mode: 'HTML'
+                }
+            );
+            return;
+        }
+
+        if (!result.fromCache) {
+            db.updateApiRequest(requestId, 'success', 'Data ditemukan', null, null, result.data);
+        }
+        db.createTransaction(userId, 'check', checkV2Cost, `Cek NIK V2 berhasil${result.fromCache ? ' (cache)' : ''}`, nik, 'success');
+
+        let text = formatter.nikResultMessage(result.data, checkV2Cost, requestId, remainingToken);
+        if (result.fromCache) {
+            text = `📦 <i>Data dari SIGMABOY</i>\n\n` + text;
+        }
+        await bot.editMessageText(text, {
+            chat_id: msg.chat.id,
+            message_id: processingMsg.message_id,
+            parse_mode: 'HTML'
+        });
+    },
+
+    /**
+     * Alias pendek: /nikv2 -> /ceknikv2
+     */
+    async nikv2(bot, msg, args) {
+        return this.ceknikv2(bot, msg, args);
     },
 
     /**
