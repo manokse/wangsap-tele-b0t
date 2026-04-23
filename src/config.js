@@ -60,6 +60,8 @@ module.exports = {
     
     // Cost per feature (dalam token)
     ceknomorCost: parseInt(process.env.CEKNOMOR_COST) || 3,
+    ceknomorv2Cost: parseInt(process.env.CEKNOMORV2_COST) || 3,
+    edabuMassalCost: parseInt(process.env.EDABUMASSAL_COST) || 3,
     namaCost: parseInt(process.env.NAMA_COST) || 3,
     nama2Cost: parseInt(process.env.NAMA2_COST) || 3,
     kkCost: parseInt(process.env.KK_COST) || 3,

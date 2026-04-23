@@ -5,7 +5,9 @@ const paymentService = require('../services/payment');
 const asexVehicleService = require('../services/asexVehicle');
 const { isValidNIK, isValidKK, addWatermark } = require('../utils/helper');
 const formatter = require('../utils/formatter');
-const { ceknomorResultMessage } = require('../utils/formatter');
+const { ceknomorResultMessage, ceknomorv2ResultMessage } = require('../utils/formatter');
+const fs = require('fs');
+const path = require('path');
 const axios = require('axios');
 const https = require('https');
 const QRCode = require('qrcode');
@@ -148,41 +150,54 @@ const userCommands = {
 Pilih fitur yang ingin digunakan:
 <i>(Tap tombol untuk memulai)</i>`;
         
-        // Build inline keyboard with costs
+        // Build inline keyboard with costs - V1 first, V2 below
         const inlineKeyboard = [
-            [
-                { text: `📱 CekNomor (${ceknomorCost}t)`, callback_data: 'menu_ceknomor' }
-            ],
+            // ── V1 Features ──
             [
                 { text: `🔍 CekNIK (${checkCost}t)`, callback_data: 'menu_ceknik' },
-                { text: `🆔 CekNIK V2 (${parseInt(settings.checkv2_cost) || config.checkV2Cost}t)`, callback_data: 'menu_ceknikv2' }
-            ],
-            [
                 { text: `👤 Nama (${namaCost}t)`, callback_data: 'menu_nama' }
             ],
             [
-                { text: `👨‍👩‍👧‍👦 KK (${kkCost}t)`, callback_data: 'menu_kk' }
+                { text: `👨‍👩‍👧‍👦 KK (${kkCost}t)`, callback_data: 'menu_kk' },
+                { text: `📱 CekNomor (${ceknomorCost}t)`, callback_data: 'menu_ceknomor' }
             ],
             [
-                { text: `🏥 BPJS (${edabuCost}t)`, callback_data: 'menu_edabu' },
-                { text: `👷 BPJS TK (${bpjstkCost}t)`, callback_data: 'menu_bpjstk' }
+                { text: `📸 NikFoto (${parseInt(settings.nikfoto_cost) || config.nikfotoCost}t)`, callback_data: 'menu_nikfoto' }
+            ],
+            // ── V2 Features ──
+            [
+                { text: `🆔 CekNIK V2 (${parseInt(settings.checkv2_cost) || config.checkV2Cost}t)`, callback_data: 'menu_ceknikv2' },
+                { text: `📍 NIKAlamat (${parseInt(settings.nikalamat_cost) || config.nikAlamatCost}t)`, callback_data: 'menu_nikalamat' }
             ],
             [
-                { text: `🚗 Nopol (${nopolCost}t)`, callback_data: 'menu_nopol' },
-                { text: `🔧 Noka (${parseInt(settings.noka_cost) || config.nokaCost}t)`, callback_data: 'menu_noka' }
+                { text: `👨‍👩‍👧‍👦 KK V2 (${parseInt(settings.kkv2_cost) || config.kkv2Cost}t)`, callback_data: 'menu_kkv2' },
+                { text: `📱 CekNomor V2 (${parseInt(settings.ceknomorv2_cost) || config.ceknomorv2Cost}t)`, callback_data: 'menu_ceknomorv2' }
             ],
             [
-                { text: `🔩 Nosin (${parseInt(settings.nosin_cost) || config.nosinCost}t)`, callback_data: 'menu_nosin' },
-                { text: `🪪 NikPlat (${parseInt(settings.nikplat_cost) || config.nikplatCost}t)`, callback_data: 'menu_nikplat' }
-            ],
-            [
-                { text: ` DataBocor (${databocorCost}t)`, callback_data: 'menu_databocor' },
-                { text: `📱 GetContact (${getcontactCost}t)`, callback_data: 'menu_getcontact' }
-            ],
-            [
-                { text: `📸 NikFoto (${parseInt(settings.nikfoto_cost) || config.nikfotoCost}t)`, callback_data: 'menu_nikfoto' },
                 { text: `👤 Nama2 (${parseInt(settings.nama2_cost) || config.nama2Cost}t)`, callback_data: 'menu_nama2' }
             ],
+            // ── BPJS & Kendaraan ──
+            [
+                { text: `🏥 BPJS (${edabuCost}t)`, callback_data: 'menu_edabu' },
+                { text: `🏥 BPJS Massal`, callback_data: 'menu_edabumassal' }
+            ],
+            [
+                { text: `🛡️ BPJS TK (${bpjstkCost}t)`, callback_data: 'menu_bpjstk' },
+                { text: `🚗 Nopol (${nopolCost}t)`, callback_data: 'menu_nopol' }
+            ],
+            [
+                { text: `🔧 Noka (${parseInt(settings.noka_cost) || config.nokaCost}t)`, callback_data: 'menu_noka' },
+                { text: `🔩 Nosin (${parseInt(settings.nosin_cost) || config.nosinCost}t)`, callback_data: 'menu_nosin' }
+            ],
+            [
+                { text: `🪪 NikPlat (${parseInt(settings.nikplat_cost) || config.nikplatCost}t)`, callback_data: 'menu_nikplat' }
+            ],
+            // ── Lainnya ──
+            [
+                { text: `🔐 DataBocor (${databocorCost}t)`, callback_data: 'menu_databocor' },
+                { text: `📱 GetContact (${getcontactCost}t)`, callback_data: 'menu_getcontact' }
+            ],
+            // ── Akun ──
             [
                 { text: '💳 Deposit', callback_data: 'goto_deposit' },
                 { text: '🪙 Saldo', callback_data: 'goto_saldo' }
@@ -362,6 +377,217 @@ Pilih fitur yang ingin digunakan:
             message_id: processingMsg.message_id,
             parse_mode: 'HTML'
         });
+    },
+
+    /**
+     * Command: /ceknomorv2 <nomor>
+     * Cek Nomor HP V2 (ASEX phone2cid)
+     */
+    async ceknomorv2(bot, msg, args) {
+        const userId = msg.from.id;
+        const firstName = msg.from.first_name || 'User';
+        const username = msg.from.username || null;
+
+        if (!args || args.length === 0) {
+            await bot.sendMessage(msg.chat.id, '❌ <b>Format Salah</b>\n\nGunakan: /ceknomorv2 &lt;Nomor HP&gt;\nContoh: <code>/ceknomorv2 081234567890</code>', { parse_mode: 'HTML' });
+            return;
+        }
+
+        const nomorInput = args[0].replace(/[^0-9+]/g, '');
+        if (nomorInput.length < 10 || nomorInput.length > 15) {
+            await bot.sendMessage(msg.chat.id, '❌ <b>Nomor Tidak Valid</b>\n\nNomor HP harus 10-15 digit', { parse_mode: 'HTML' });
+            return;
+        }
+
+        const user = db.getOrCreateUser(userId, username, firstName);
+        const settings = db.getAllSettings();
+
+        if (settings.mt_ceknomorv2 === 'true') {
+            await bot.sendMessage(msg.chat.id, '⚠️ <b>MAINTENANCE</b>\n\nFitur <b>CEK NOMOR V2</b> sedang dalam perbaikan.', { parse_mode: 'HTML' });
+            return;
+        }
+
+        const cost = parseInt(settings.ceknomorv2_cost) || config.ceknomorv2Cost;
+        if (user.token_balance < cost) {
+            await bot.sendMessage(msg.chat.id, `❌ <b>Saldo Tidak Cukup</b>\n\n🪙 Saldo: <b>${user.token_balance} token</b>\n💰 Biaya: <b>${cost} token</b>\n\nKetik /deposit untuk top up`, { parse_mode: 'HTML' });
+            return;
+        }
+
+        const requestId = db.createApiRequest(userId, 'ceknomorv2', nomorInput, 'asex_phone2cid', cost);
+        const processingMsg = await bot.sendMessage(msg.chat.id, `⏳ <b>Sedang Proses...</b>\n\n📱 Mencari data nomor V2: <b>${nomorInput}</b>\n🆔 ID: <code>${requestId}</code>`, { parse_mode: 'HTML' });
+
+        db.deductTokens(userId, cost);
+        let result = await apiService.checkNomorV2(nomorInput);
+
+        const updatedUser = db.getUser(userId);
+        const remainingToken = updatedUser?.token_balance || 0;
+
+        if (!result.success) {
+            const cached = db.getCachedApiResponse('ceknomorv2', nomorInput, 9999 / 24);
+            if (cached && cached.response_data) {
+                result = { success: true, data: cached.response_data, fromCache: true };
+            }
+        }
+
+        if (!result.success) {
+            if (result.refund) db.refundTokens(userId, cost);
+            db.updateApiRequest(requestId, 'failed', null, null, result.error);
+            db.createTransaction(userId, 'check', cost, `Cek nomor V2 gagal`, nomorInput, 'failed');
+            await bot.editMessageText(`❌ <b>Gagal</b>\n\n${result.error}\n\n${result.refund ? `🪙 Token dikembalikan: <b>${cost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`, {
+                chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
+            });
+            return;
+        }
+
+        if (!result.fromCache) db.updateApiRequest(requestId, 'success', 'Data ditemukan', null, null, result.data);
+        db.createTransaction(userId, 'check', cost, `Cek nomor V2 berhasil${result.fromCache ? ' (cache)' : ''}`, nomorInput, 'success');
+
+        const textResult = ceknomorv2ResultMessage(result.data, cost, requestId, remainingToken, result.apiInfo);
+        await bot.editMessageText(textResult, {
+            chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
+        });
+    },
+
+    /**
+     * Command: /edabumassal <nik1 nik2 ...>
+     * Cek BPJS Massal (max 50 NIK) - Output XLSX
+     */
+    async edabumassal(bot, msg, args) {
+        const userId = msg.from.id;
+        const firstName = msg.from.first_name || 'User';
+        const username = msg.from.username || null;
+
+        if (!args || args.length === 0) {
+            await bot.sendMessage(msg.chat.id, '❌ <b>Format Salah</b>\n\nGunakan: /edabumassal &lt;NIK1&gt; &lt;NIK2&gt; ...\nPisahkan dengan spasi, koma, atau enter.\nMaksimal <b>50 NIK</b> per request.\n\nContoh:\n<code>/edabumassal 3510036512990002 6471055902790001</code>', { parse_mode: 'HTML' });
+            return;
+        }
+
+        const rawInput = args.join(' ');
+        const nikList = rawInput.split(/[\s,;\n]+/).map(n => n.replace(/\D/g, '')).filter(n => n.length === 16);
+
+        if (nikList.length === 0) {
+            await bot.sendMessage(msg.chat.id, '❌ <b>NIK Tidak Valid</b>\n\nTidak ada NIK valid (16 digit) yang ditemukan.', { parse_mode: 'HTML' });
+            return;
+        }
+        if (nikList.length > 50) {
+            await bot.sendMessage(msg.chat.id, `❌ <b>Terlalu Banyak</b>\n\nMaksimal <b>50 NIK</b> per request.\nAnda mengirim <b>${nikList.length} NIK</b>.`, { parse_mode: 'HTML' });
+            return;
+        }
+
+        const user = db.getOrCreateUser(userId, username, firstName);
+        const settings = db.getAllSettings();
+
+        if (settings.mt_edabumassal === 'true') {
+            await bot.sendMessage(msg.chat.id, '⚠️ <b>MAINTENANCE</b>\n\nFitur <b>EDABU MASSAL</b> sedang dalam perbaikan.', { parse_mode: 'HTML' });
+            return;
+        }
+
+        const costPerNik = parseInt(settings.edabumassal_cost) || config.edabuMassalCost;
+        const totalCost = costPerNik * nikList.length;
+
+        if (user.token_balance < totalCost) {
+            await bot.sendMessage(msg.chat.id, `❌ <b>Saldo Tidak Cukup</b>\n\n🪙 Saldo: <b>${user.token_balance} token</b>\n💰 Biaya: <b>${costPerNik} x ${nikList.length} NIK = ${totalCost} token</b>\n\nKetik /deposit untuk top up`, { parse_mode: 'HTML' });
+            return;
+        }
+
+        const requestId = db.createApiRequest(userId, 'edabumassal', nikList.join(','), 'edabu_massal', totalCost);
+        const processingMsg = await bot.sendMessage(msg.chat.id, `⏳ <b>Sedang Proses EDABU Massal...</b>\n\n🏥 Total NIK: <b>${nikList.length}</b>\n💰 Biaya: <b>${totalCost} token</b>\n🆔 ID: <code>${requestId}</code>\n<i>Proses bisa memakan waktu beberapa menit</i>`, { parse_mode: 'HTML' });
+
+        db.deductTokens(userId, totalCost);
+        let result = await apiService.checkEdabuMassal(nikList);
+
+        if (!result.success) {
+            db.refundTokens(userId, totalCost);
+            db.updateApiRequest(requestId, 'failed', null, null, result.error);
+            db.createTransaction(userId, 'check', totalCost, `EDABU Massal gagal`, nikList.join(','), 'failed');
+            await bot.editMessageText(`❌ <b>Gagal</b>\n\n${result.error}\n\n🪙 Token dikembalikan: <b>${totalCost} token</b>\n🆔 ID: <code>${requestId}</code>`, {
+                chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
+            });
+            return;
+        }
+
+        const refundAmount = costPerNik * result.failedCount;
+        if (refundAmount > 0) db.refundTokens(userId, refundAmount);
+        const actualCost = totalCost - refundAmount;
+
+        db.updateApiRequest(requestId, 'success', `${result.successCount}/${result.total} berhasil`, null, null, result);
+        db.createTransaction(userId, 'check', actualCost, `EDABU Massal: ${result.successCount}/${result.total} OK`, nikList.join(','), 'success');
+
+        // Generate XLSX
+        try {
+            const XLSX = require('xlsx');
+            const wb = XLSX.utils.book_new();
+            const now = new Date();
+            const timestamp = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}.${String(now.getMinutes()).padStart(2,'0')}.${String(now.getSeconds()).padStart(2,'0')}`;
+
+            const rows = [];
+            rows.push(['Laporan BPJS Kesehatan Massal']);
+            rows.push([`Jenis: BPJS Kesehatan Massal   |   Waktu: ${timestamp}   |   Total NIK: ${nikList.length}   |   Cost Dipotong: ${actualCost}   |   Sukses: ${result.successCount}   |   Gagal: ${result.failedCount}`]);
+            rows.push([]);
+
+            for (const item of result.results) {
+                rows.push([`NIK Dicari: ${item.nik}`]);
+                rows.push(['Match NIK','NIK Peserta','No Kartu','No KK','Nama','Hub Keluarga','Jenis Kelamin','TTL','No HP','Email','Alamat','Kelurahan','Kecamatan','Kabupaten','Provinsi','Kode Pos','Status Peserta','Segmen','Tanggungan','Perusahaan','Kode PKS','TMT Pegawai','Keterangan']);
+
+                if (item.success && item.data) {
+                    const anggota = item.data.anggota || [];
+                    const raw = item.data.raw || [];
+                    if (anggota.length > 0) {
+                        anggota.forEach(p => {
+                            const isMatch = p.nik === item.nik ? 'YA' : '-';
+                            const rawData = raw.find(r => r.NIK === p.nik);
+                            rows.push([
+                                isMatch, p.nik || '-', p.noKartu || '-', '-', p.nama || '-',
+                                p.hubunganKeluarga || rawData?.KDHUBKEL || '-', p.jenisKelamin || '-',
+                                p.ttl || '-', p.noHP || '-', p.email || '-',
+                                '-', '-', '-', '-', '-', '-',
+                                p.status || p.statusPeserta || '-', rawData?.JNSPST?.KDJNSKPST || '-',
+                                rawData?.KDHUBKEL ? 'Ya (Tanggungan)' : '-',
+                                rawData?.NMPPK || '-', rawData?.KDPPK || '-', rawData?.TGLMULAIKERJA || '-',
+                                'Data found'
+                            ]);
+                        });
+                    } else {
+                        rows.push(['-',item.nik,'-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','Data found but no members']);
+                    }
+                } else {
+                    rows.push(['-',item.nik,'-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-',item.error || 'Not found']);
+                }
+                rows.push([]);
+            }
+
+            const ws = XLSX.utils.aoa_to_sheet(rows);
+            ws['!cols'] = [{wch:10},{wch:18},{wch:16},{wch:10},{wch:30},{wch:15},{wch:12},{wch:25},{wch:15},{wch:30},{wch:15},{wch:15},{wch:15},{wch:15},{wch:15},{wch:10},{wch:12},{wch:25},{wch:15},{wch:35},{wch:12},{wch:18},{wch:15}];
+            XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
+
+            const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
+            const fileName = `bpjsmassal_${dateStr}.xlsx`;
+            const filePath = path.join(config.dataFolder || 'data', fileName);
+
+            if (!fs.existsSync(path.dirname(filePath))) fs.mkdirSync(path.dirname(filePath), { recursive: true });
+            XLSX.writeFile(wb, filePath);
+
+            const updatedUser2 = db.getUser(userId);
+            const finalRemaining = updatedUser2?.token_balance || 0;
+
+            let summaryText = `✅ <b>EDABU MASSAL SELESAI</b>\n\n📊 Total: <b>${nikList.length} NIK</b>\n✅ Sukses: <b>${result.successCount}</b>\n❌ Gagal: <b>${result.failedCount}</b>\n💰 Cost: <b>${actualCost} token</b>`;
+            if (refundAmount > 0) summaryText += `\n🔄 Refund (gagal): <b>${refundAmount} token</b>`;
+            summaryText += `\n🪙 Sisa: <b>${finalRemaining} token</b>\n🆔 ID: <code>${requestId}</code>`;
+
+            await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => {});
+            await bot.sendMessage(msg.chat.id, summaryText, { parse_mode: 'HTML' });
+            await bot.sendDocument(msg.chat.id, filePath, { caption: `📊 Laporan BPJS Massal - ${nikList.length} NIK` }, { filename: fileName });
+
+            try { fs.unlinkSync(filePath); } catch (e) {}
+        } catch (xlsxErr) {
+            console.error('XLSX generation error:', xlsxErr.message);
+            const updatedUser2 = db.getUser(userId);
+            const finalRemaining = updatedUser2?.token_balance || 0;
+            let fallbackText = `✅ <b>EDABU MASSAL SELESAI</b>\n\n📊 Total: <b>${nikList.length} NIK</b>\n✅ Sukses: <b>${result.successCount}</b>\n❌ Gagal: <b>${result.failedCount}</b>\n💰 Cost: <b>${actualCost} token</b>\n🪙 Sisa: <b>${finalRemaining} token</b>\n\n⚠️ <i>Gagal generate file XLSX, silakan coba lagi.</i>`;
+            await bot.editMessageText(fallbackText, {
+                chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
+            });
+        }
     },
 
     /**

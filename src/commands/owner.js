@@ -735,7 +735,7 @@ const ownerCommands = {
     async setcost(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nFitur: ceknomor, ceknik, ceknikv2, nama, kk, edabu, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, getdata\nContoh: <code>/setcost ceknomor 3</code>`,
+                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nContoh: <code>/setcost edabumassal 3</code>\n<i>edabumassal = biaya per NIK</i>\n\nFitur: ceknomor, ceknomorv2, ceknik, ceknikv2, nama, nama2, kk, kkv2, nikalamat, edabu, edabumassal, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, getdata, nikfoto`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -744,7 +744,7 @@ const ownerCommands = {
         const feature = args[0].toLowerCase();
         const cost = parseFloat(args[1]);
         
-        const validFeatures = ['ceknomor', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'edabu', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'nikfoto'];
+        const validFeatures = ['ceknomor', 'ceknomorv2', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'kkv2', 'nikalamat', 'edabu', 'edabumassal', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'nikfoto'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -779,12 +779,16 @@ const ownerCommands = {
         // Map feature name to database key
         const featureKeyMap = {
             'ceknomor': 'ceknomor_cost',
+            'ceknomorv2': 'ceknomorv2_cost',
             'ceknik': 'check_cost',
             'ceknikv2': 'checkv2_cost',
             'nama': 'nama_cost',
             'nama2': 'nama2_cost',
             'kk': 'kk_cost',
+            'kkv2': 'kkv2_cost',
+            'nikalamat': 'nikalamat_cost',
             'edabu': 'edabu_cost',
+            'edabumassal': 'edabumassal_cost',
             'bpjstk': 'bpjstk_cost',
             'nopol': 'nopol_cost',
             'noka': 'noka_cost',
@@ -799,8 +803,9 @@ const ownerCommands = {
         const settingKey = featureKeyMap[feature] || `${feature}_cost`;
         db.setSetting(settingKey, cost);
 
+        const perNikNote = feature === 'edabumassal' ? ' <i>(per NIK)</i>' : '';
         await bot.sendMessage(msg.chat.id,
-            `✅ Biaya <b>${feature.toUpperCase()}</b> diubah ke <b>${cost} token</b>`,
+            `✅ Biaya <b>${feature.toUpperCase()}</b> diubah ke <b>${cost} token</b>${perNikNote}`,
             { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
         );
     },
@@ -1367,6 +1372,53 @@ const ownerCommands = {
             `✅ <b>COOLDOWN UPDATED</b>\n\n⏱️ Fitur: <b>${feature}</b>\n⏳ Cooldown: <b>${seconds} detik</b>\n\n<i>User harus tunggu ${seconds} detik sebelum bisa pakai ${feature} lagi</i>`,
             { parse_mode: 'HTML' }
         );
+    },
+
+    /**
+     * Command: /update
+     * Auto update bot dari git repository
+     */
+    async update(bot, msg) {
+        const chatId = msg.chat.id;
+        const { exec } = require('child_process');
+        const util = require('util');
+        const execAsync = util.promisify(exec);
+
+        const processingMsg = await bot.sendMessage(chatId, '⏳ <b>Sedang Update Bot...</b>\n\n🔄 Menjalankan git pull...', { parse_mode: 'HTML' });
+
+        try {
+            const { stdout: pullOutput } = await execAsync('git pull', { cwd: process.cwd(), timeout: 30000 });
+            const pullResult = (pullOutput || '').trim();
+            const isUpToDate = pullResult.includes('Already up to date') || pullResult.includes('Already up-to-date');
+
+            if (isUpToDate) {
+                await bot.editMessageText(`✅ <b>Bot Sudah Terbaru</b>\n\n📦 Tidak ada update baru.\n\n<code>${pullResult}</code>`, {
+                    chat_id: chatId, message_id: processingMsg.message_id, parse_mode: 'HTML'
+                });
+                return;
+            }
+
+            let npmOutput = '';
+            try {
+                const { stdout: npmOut } = await execAsync('npm install --production', { cwd: process.cwd(), timeout: 60000 });
+                npmOutput = (npmOut || '').trim();
+            } catch (e) { npmOutput = 'npm install skipped/failed'; }
+
+            await bot.editMessageText(`✅ <b>Update Berhasil!</b>\n\n📦 <b>Git Pull:</b>\n<code>${pullResult.substring(0, 500)}</code>\n\n📦 <b>NPM:</b> ${npmOutput.substring(0, 200)}\n\n⚠️ <b>Bot akan restart dalam 3 detik...</b>`, {
+                chat_id: chatId, message_id: processingMsg.message_id, parse_mode: 'HTML'
+            });
+
+            setTimeout(() => {
+                console.log('🔄 Restarting bot after update...');
+                process.exit(0);
+            }, 3000);
+
+        } catch (error) {
+            console.error('Update error:', error.message);
+            await bot.editMessageText(`❌ <b>Update Gagal</b>\n\n${error.message}\n\n<i>Pastikan git sudah terinstall dan repo sudah di-clone.</i>`, {
+                chat_id: chatId, message_id: processingMsg.message_id, parse_mode: 'HTML'
+            });
+        }
     }
 };
 

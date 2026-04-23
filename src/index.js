@@ -17,6 +17,8 @@ global.pendingCommands = new Map();
 // Command prompts dictionary
 const commandPrompts = {
     'ceknomor': '📝 Silakan kirim *Nomor HP* yang ingin dicek:\nContoh: 081234567890',
+    'ceknomorv2': '📝 Silakan kirim *Nomor HP* untuk cek V2:\nContoh: 081234567890',
+    'edabumassal': '📝 Silakan kirim *daftar NIK* (pisahkan dengan spasi/koma/enter, max 50 NIK):\nContoh: 3510036512990002 6471055902790001',
     'ceknik': '📝 Silakan kirim *NIK 16 digit* yang ingin dicek:',
     'ceknikv2': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK V2:',
     'nikv2': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK V2:',

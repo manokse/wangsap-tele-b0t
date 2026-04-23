@@ -91,8 +91,10 @@ function menuMessage() {
     const kkv2Cost = parseInt(settings.kkv2_cost) || config.kkv2Cost;
     const nikAlamatCost = parseInt(settings.nikalamat_cost) || config.nikAlamatCost;
     const ceknomorCost = parseInt(settings.ceknomor_cost) || config.ceknomorCost;
+    const ceknomorv2Cost = parseInt(settings.ceknomorv2_cost) || config.ceknomorv2Cost;
     const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
     const edabuCost = parseInt(settings.edabu_cost) || config.edabuCost;
+    const edabuMassalCost = parseInt(settings.edabumassal_cost) || config.edabuMassalCost;
     const bpjstkCost = parseInt(settings.bpjstk_cost) || config.bpjstkCost;
     const nopolCost = parseInt(settings.nopol_cost) || config.nopolCost;
     const nokaCost = parseInt(settings.noka_cost) || config.nokaCost;
@@ -118,11 +120,13 @@ ${LINE.sep}
 🆔 /ceknikv2 • <code>${checkV2Cost} token</code>
 📍 /nikalamat • <code>${nikAlamatCost} token</code>
 👨‍👩‍👧‍👦 /kkv2 • <code>${kkv2Cost} token</code>
+📱 /ceknomorv2 • <code>${ceknomorv2Cost} token</code>
 👤 /nama2 • <code>${nama2Cost} token</code>
 
 ${EMOJI.search} <b>BPJS & KENDARAAN</b>
 ${LINE.sep}
 🏥 /edabu • <code>${edabuCost} token</code>
+🏥 /edabumassal • <code>${edabuMassalCost} token/NIK</code>
 🛡️ /bpjstk • <code>${bpjstkCost} token</code>
 🚗 /nopol • <code>${nopolCost} token</code>
 🔧 /noka • <code>${nokaCost} token</code>
@@ -286,10 +290,12 @@ ${EMOJI.sparkle} <b>FITUR PENCARIAN V2:</b>
 🆔 /ceknikv2 - Cek NIK V2
 📍 /nikalamat - NIK to Alamat
 👨‍👩‍👧‍👦 /kkv2 - Cek KK V2
+📱 /ceknomorv2 - Cek Nomor HP V2
 👤 /nama2 - Cari Nama V2
 
 ${EMOJI.sparkle} <b>BPJS & KENDARAAN:</b>
 🏥 /edabu - Cek BPJS Kesehatan
+🏥 /edabumassal - BPJS Massal (max 50 NIK)
 🛡️ /bpjstk - Cek BPJS TK
 🚗 /nopol - Cek Kendaraan dari Plat
 🔧 /noka - Cek Kendaraan dari No. Rangka
@@ -1515,6 +1521,37 @@ ${LINE.thin}
 /**
  * Format hasil KK V2 (ASEX API)
  */
+/**
+ * Format hasil Cek Nomor V2 (ASEX phone2cid)
+ */
+function ceknomorv2ResultMessage(data, tokenUsed, requestId = '', remainingToken = 0, apiInfo = null) {
+    let msg = `📱 <b>HASIL CEK NOMOR HP V2</b>
+${LINE.double}
+
+<b>━━━ 📋 IDENTITAS ━━━</b>
+🆔 NIK: <code>${data.nik || '-'}</code>
+👤 Nama: <b>${escapeHtml(data.name || '-')}</b>
+⚧️ Kelamin: ${escapeHtml(data.gender || '-')}
+📅 TTL: ${escapeHtml(data.ttl || '-')}`;
+
+    if (data.phone && Array.isArray(data.phone) && data.phone.length > 0) {
+        msg += `\n\n<b>━━━ 📱 NOMOR TERDAFTAR (${data.phone.length}) ━━━</b>`;
+        data.phone.forEach((p, i) => {
+            msg += `\n\n${i + 1}. <code>${p.number}</code>`;
+            msg += `\n   Provider: ${escapeHtml(p.provider)}`;
+            msg += `\n   Reg: ${escapeHtml(p.register)}`;
+        });
+    }
+
+    msg += `
+
+${LINE.thin}
+🆔 ID: <code>${requestId}</code>
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
+`;
+    return msg;
+}
+
 function kkv2ResultMessage(data, nkk, tokenUsed, requestId = '', remainingToken = 0) {
     const kepala = data.KEPALA_KELUARGA;
     const anggota = data.ANGGOTA || [];
@@ -1626,6 +1663,7 @@ module.exports = {
     namaResultMessage,
     nama2ResultMessage,
     kkResultMessage,
+    ceknomorv2ResultMessage,
     kkv2ResultMessage,
     nikAlamatResultMessage,
     edabuResultMessage,

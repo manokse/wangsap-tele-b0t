@@ -124,6 +124,95 @@ class APIService {
     }
 
     /**
+     * ═══════════════════════════════════════════
+     * CEK NOMOR HP V2 (ASEX phone2cid API)
+     * ═══════════════════════════════════════════
+     */
+    async checkNomorV2(phone) {
+        try {
+            let cleanPhone = String(phone || '').replace(/\D/g, '');
+            if (cleanPhone.startsWith('0')) {
+                cleanPhone = '62' + cleanPhone.substring(1);
+            } else if (!cleanPhone.startsWith('62')) {
+                cleanPhone = '62' + cleanPhone;
+            }
+
+            const apiKey = '7307614f472509c745f52c75e74dfbf8';
+            const url = `https://apiv3.asexapi.cloud/phone2cid/?api_key=${apiKey}&phone=${encodeURIComponent(cleanPhone)}`;
+            
+            console.log(`🔍 [ASEX Phone2CID] Checking: ${cleanPhone}`);
+
+            const response = await axios.get(url, {
+                timeout: 60000,
+                headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
+            });
+
+            const data = response.data;
+
+            if (!data.status || !data.data) {
+                return { success: false, error: data.message || 'Data tidak ditemukan', refund: true };
+            }
+
+            console.log(`✅ [ASEX Phone2CID] Found: ${data.data.name}`);
+            return {
+                success: true,
+                data: data.data,
+                apiInfo: { used_today: data.used_today, limit: data.limit, remaining: data.remaining },
+                refund: false
+            };
+        } catch (error) {
+            console.error('ASEX Phone2CID API Error:', error.message);
+            return this.handleError(error);
+        }
+    }
+
+    /**
+     * ═══════════════════════════════════════════
+     * CEK EDABU MASSAL (Batch max 50 NIK)
+     * ═══════════════════════════════════════════
+     */
+    async checkEdabuMassal(nikList) {
+        try {
+            if (!Array.isArray(nikList) || nikList.length === 0) {
+                return { success: false, error: 'Daftar NIK tidak valid', refund: true };
+            }
+            if (nikList.length > 50) {
+                return { success: false, error: 'Maksimal 50 NIK per request', refund: true };
+            }
+
+            console.log(`🔍 [EDABU Massal] Processing ${nikList.length} NIK(s)`);
+            const results = [];
+            let successCount = 0;
+            let failedCount = 0;
+
+            for (let i = 0; i < nikList.length; i++) {
+                const nik = nikList[i];
+                console.log(`   [${i + 1}/${nikList.length}] Checking NIK: ${nik}`);
+                try {
+                    const result = await this.checkEdabu(nik);
+                    if (result.success) {
+                        successCount++;
+                        results.push({ nik, success: true, data: result.data });
+                    } else {
+                        failedCount++;
+                        results.push({ nik, success: false, error: result.error });
+                    }
+                } catch (error) {
+                    failedCount++;
+                    results.push({ nik, success: false, error: error.message || 'Error' });
+                }
+                if (i < nikList.length - 1) await this.delay(1000);
+            }
+
+            console.log(`✅ [EDABU Massal] Completed: ${successCount} success, ${failedCount} failed`);
+            return { success: true, total: nikList.length, successCount, failedCount, results, refund: false };
+        } catch (error) {
+            console.error('EDABU Massal Error:', error.message);
+            return this.handleError(error);
+        }
+    }
+
+    /**
      * CEK NIK (Archi3 Identity API)
      */
     async checkNIK(nik) {
