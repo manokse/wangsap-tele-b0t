@@ -489,33 +489,58 @@ Pilih fitur yang ingin digunakan:
             return;
         }
 
+        const { buildProgressTG, getSpinnerFrame } = require('../utils/progressBar');
+
         const requestId = db.createApiRequest(userId, 'edabumassal', nikList.join(','), 'edabu_massal', totalCost);
-        const processingMsg = await bot.sendMessage(msg.chat.id, `⏳ <b>Sedang Proses EDABU Massal...</b>\n\n🏥 Total NIK: <b>${nikList.length}</b>\n💰 Biaya: <b>${totalCost} token</b>\n🆔 ID: <code>${requestId}</code>\n<i>Proses bisa memakan waktu beberapa menit</i>`, { parse_mode: 'HTML' });
+
+        // Initial progress message
+        const processingMsg = await bot.sendMessage(msg.chat.id,
+            buildProgressTG({ title: 'BPJS Kesehatan Massal', frame: getSpinnerFrame(0), processed: 0, total: nikList.length, success: 0, failed: 0, costCount: totalCost, elapsedMs: 0 }),
+            { parse_mode: 'HTML' }
+        );
 
         db.deductTokens(userId, totalCost);
-        let result = await apiService.checkEdabuMassal(nikList);
 
-        if (!result.success) {
-            db.refundTokens(userId, totalCost);
-            db.updateApiRequest(requestId, 'failed', null, null, result.error);
-            db.createTransaction(userId, 'check', totalCost, `EDABU Massal gagal`, nikList.join(','), 'failed');
-            await bot.editMessageText(`❌ <b>Gagal</b>\n\n${result.error}\n\n🪙 Token dikembalikan: <b>${totalCost} token</b>\n🆔 ID: <code>${requestId}</code>`, {
-                chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
-            });
-            return;
+        // Process each NIK with live progress
+        const startedAt = Date.now();
+        const results = [];
+        let successCount = 0;
+        let failedCount = 0;
+        const progressEvery = Math.max(1, Math.ceil(nikList.length / 10));
+
+        for (let i = 0; i < nikList.length; i++) {
+            const nik = nikList[i];
+            try {
+                const res = await apiService.checkEdabu(nik);
+                if (res.success) { successCount++; results.push({ nik, success: true, data: res.data }); }
+                else { failedCount++; results.push({ nik, success: false, error: res.error }); }
+            } catch (e) { failedCount++; results.push({ nik, success: false, error: e.message }); }
+
+            const processed = i + 1;
+            if (processed % progressEvery === 0 || processed === nikList.length) {
+                await bot.editMessageText(
+                    buildProgressTG({ title: 'BPJS Kesehatan Massal', frame: getSpinnerFrame(processed), processed, total: nikList.length, success: successCount, failed: failedCount, costCount: totalCost, elapsedMs: Date.now() - startedAt }),
+                    { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
+                ).catch(() => {});
+            }
+
+            if (i < nikList.length - 1) await new Promise(r => setTimeout(r, 1000));
         }
 
-        const refundAmount = costPerNik * result.failedCount;
+        const result = { success: true, total: nikList.length, successCount, failedCount, results, refund: false };
+
+        const refundAmount = costPerNik * failedCount;
         if (refundAmount > 0) db.refundTokens(userId, refundAmount);
         const actualCost = totalCost - refundAmount;
 
-        db.updateApiRequest(requestId, 'success', `${result.successCount}/${result.total} berhasil`, null, null, result);
-        db.createTransaction(userId, 'check', actualCost, `EDABU Massal: ${result.successCount}/${result.total} OK`, nikList.join(','), 'success');
+        db.updateApiRequest(requestId, 'success', `${successCount}/${result.total} berhasil`, null, null, result);
+        db.createTransaction(userId, 'check', actualCost, `EDABU Massal: ${successCount}/${result.total} OK`, nikList.join(','), 'success');
 
         // Fetch alamat per NIK via SecureTrack
-        await bot.editMessageText(`⏳ <b>Mengambil data alamat...</b>\n\n📍 Fetching alamat untuk ${result.successCount} NIK\n🆔 ID: <code>${requestId}</code>`, {
-            chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
-        }).catch(() => {});
+        await bot.editMessageText(
+            buildProgressTG({ title: 'Mengambil Data Alamat...', frame: '📍', processed: nikList.length, total: nikList.length, success: successCount, failed: failedCount, costCount: actualCost, elapsedMs: Date.now() - startedAt }),
+            { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
+        ).catch(() => {});
 
         for (const item of result.results) {
             if (item.success && item.data) {
@@ -542,7 +567,7 @@ Pilih fitur yang ingin digunakan:
             const updatedUser2 = db.getUser(userId);
             const finalRemaining = updatedUser2?.token_balance || 0;
 
-            let summaryText = `✅ <b>EDABU MASSAL SELESAI</b>\n\n📊 Total: <b>${nikList.length} NIK</b>\n✅ Sukses: <b>${result.successCount}</b>\n❌ Gagal: <b>${result.failedCount}</b>\n💰 Cost: <b>${actualCost} token</b>`;
+            let summaryText = `✅ <b>EDABU MASSAL SELESAI</b>\n\n📊 Total: <b>${nikList.length} NIK</b>\n✅ Sukses: <b>${successCount}</b>\n❌ Gagal: <b>${failedCount}</b>\n💰 Cost: <b>${actualCost} token</b>`;
             if (refundAmount > 0) summaryText += `\n🔄 Refund (gagal): <b>${refundAmount} token</b>`;
             summaryText += `\n🪙 Sisa: <b>${finalRemaining} token</b>\n🆔 ID: <code>${requestId}</code>`;
 
@@ -555,7 +580,7 @@ Pilih fitur yang ingin digunakan:
             console.error('XLSX generation error:', xlsxErr.message);
             const updatedUser2 = db.getUser(userId);
             const finalRemaining = updatedUser2?.token_balance || 0;
-            let fallbackText = `✅ <b>EDABU MASSAL SELESAI</b>\n\n📊 Total: <b>${nikList.length} NIK</b>\n✅ Sukses: <b>${result.successCount}</b>\n❌ Gagal: <b>${result.failedCount}</b>\n💰 Cost: <b>${actualCost} token</b>\n🪙 Sisa: <b>${finalRemaining} token</b>\n\n⚠️ <i>Gagal generate file XLSX, silakan coba lagi.</i>`;
+            let fallbackText = `✅ <b>EDABU MASSAL SELESAI</b>\n\n📊 Total: <b>${nikList.length} NIK</b>\n✅ Sukses: <b>${successCount}</b>\n❌ Gagal: <b>${failedCount}</b>\n💰 Cost: <b>${actualCost} token</b>\n🪙 Sisa: <b>${finalRemaining} token</b>\n\n⚠️ <i>Gagal generate file XLSX, silakan coba lagi.</i>`;
             await bot.editMessageText(fallbackText, {
                 chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
             });
