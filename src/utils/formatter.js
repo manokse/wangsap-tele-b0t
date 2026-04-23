@@ -84,42 +84,55 @@ function menuMessage() {
     const settings = db.getAllSettings();
     const tokenPrice = parseInt(settings.token_price) || config.tokenPrice;
     const checkCost = parseInt(settings.check_cost) || config.checkCost;
+    const checkV2Cost = parseInt(settings.checkv2_cost) || config.checkV2Cost;
     const namaCost = parseInt(settings.nama_cost) || config.namaCost;
+    const nama2Cost = parseInt(settings.nama2_cost) || config.nama2Cost;
     const kkCost = parseInt(settings.kk_cost) || config.kkCost;
+    const kkv2Cost = parseInt(settings.kkv2_cost) || config.kkv2Cost;
+    const nikAlamatCost = parseInt(settings.nikalamat_cost) || config.nikAlamatCost;
     const ceknomorCost = parseInt(settings.ceknomor_cost) || config.ceknomorCost;
-        const checkV2Cost = parseInt(settings.checkv2_cost) || config.checkV2Cost;
-        const edabuCost = parseInt(settings.edabu_cost) || config.edabuCost;
-    const bpjstkCost = parseInt(settings.bpjstk_cost) || config.bpjstkCost || 3;
+    const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
+    const edabuCost = parseInt(settings.edabu_cost) || config.edabuCost;
+    const bpjstkCost = parseInt(settings.bpjstk_cost) || config.bpjstkCost;
     const nopolCost = parseInt(settings.nopol_cost) || config.nopolCost;
     const nokaCost = parseInt(settings.noka_cost) || config.nokaCost;
     const nosinCost = parseInt(settings.nosin_cost) || config.nosinCost;
     const nikplatCost = parseInt(settings.nikplat_cost) || config.nikplatCost;
-    const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
-    const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
-    const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
-    const nama2Cost = parseInt(settings.nama2_cost) || config.nama2Cost;
+    const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost;
+    const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost;
 
     return `
 ${EMOJI.diamond} <b>${config.botName.toUpperCase()}</b>
 💰 Harga: <b>${formatRupiah(tokenPrice)}/token</b>
 
-${EMOJI.search} <b>MENU PENCARIAN</b>
+${EMOJI.search} <b>DATA KEPENDUDUKAN (V1)</b>
 ${LINE.sep}
-📱 /ceknomor • <code>${ceknomorCost} token</code>
 🔍 /ceknik • <code>${checkCost} token</code>
-    🆔 /ceknikv2 • <code>${checkV2Cost} token</code>
 👤 /nama • <code>${namaCost} token</code>
 👨‍👩‍👧‍👦 /kk • <code>${kkCost} token</code>
-🏥 /edabu • <code>${edabuCost} token</code>
-👷 /bpjstk • <code>${bpjstkCost} token</code>
- 🚗 /nopol • <code>${nopolCost} token</code>
- 🔧 /noka • <code>${nokaCost} token</code>
- 🔩 /nosin • <code>${nosinCost} token</code>
- 🪪 /nikplat • <code>${nikplatCost} token</code>
-🔓 /databocor • <code>${databocorCost} token</code>
-📱 /getcontact • <code>${getcontactCost} token</code>
+📱 /ceknomor • <code>${ceknomorCost} token</code>
 📸 /nikfoto • <code>${nikfotoCost} token</code>
+
+${EMOJI.search} <b>DATA KEPENDUDUKAN (V2)</b>
+${LINE.sep}
+🆔 /ceknikv2 • <code>${checkV2Cost} token</code>
+📍 /nikalamat • <code>${nikAlamatCost} token</code>
+👨‍👩‍👧‍👦 /kkv2 • <code>${kkv2Cost} token</code>
 👤 /nama2 • <code>${nama2Cost} token</code>
+
+${EMOJI.search} <b>BPJS & KENDARAAN</b>
+${LINE.sep}
+🏥 /edabu • <code>${edabuCost} token</code>
+🛡️ /bpjstk • <code>${bpjstkCost} token</code>
+🚗 /nopol • <code>${nopolCost} token</code>
+🔧 /noka • <code>${nokaCost} token</code>
+🔩 /nosin • <code>${nosinCost} token</code>
+🪪 /nikplat • <code>${nikplatCost} token</code>
+
+${EMOJI.search} <b>LAINNYA</b>
+${LINE.sep}
+🔐 /databocor • <code>${databocorCost} token</code>
+📱 /getcontact • <code>${getcontactCost} token</code>
 
 ${EMOJI.user} <b>MENU USER</b>
 ${LINE.sep}
@@ -262,18 +275,29 @@ Bot pencarian data NIK Indonesia.
 🪙 Saldo: <b>${tokenBalance} token</b>
 📊 Cek Hari Ini: <b>${todayChecks}x</b>
 
-${EMOJI.sparkle} <b>FITUR PENCARIAN:</b>
-📱 /ceknomor - Cek Nomor HP
+${EMOJI.sparkle} <b>FITUR PENCARIAN V1:</b>
 🔍 /ceknik - Cek NIK Basic
 👤 /nama - Cari berdasarkan Nama
 👨‍👩‍👧‍👦 /kk - Cek Kartu Keluarga
+📱 /ceknomor - Cek Nomor HP
+📸 /nikfoto - NIK + Foto + Family Tree
+
+${EMOJI.sparkle} <b>FITUR PENCARIAN V2:</b>
+🆔 /ceknikv2 - Cek NIK V2
+📍 /nikalamat - NIK to Alamat
+👨‍👩‍👧‍👦 /kkv2 - Cek KK V2
+👤 /nama2 - Cari Nama V2
+
+${EMOJI.sparkle} <b>BPJS & KENDARAAN:</b>
 🏥 /edabu - Cek BPJS Kesehatan
-👷 /bpjstk - Cek BPJS TK
+🛡️ /bpjstk - Cek BPJS TK
 🚗 /nopol - Cek Kendaraan dari Plat
 🔧 /noka - Cek Kendaraan dari No. Rangka
 🔩 /nosin - Cek Kendaraan dari No. Mesin
 🪪 /nikplat - Cek Kendaraan dari NIK KTP
- /databocor - Leak OSINT
+
+${EMOJI.sparkle} <b>LAINNYA:</b>
+🔐 /databocor - Leak OSINT
 📱 /getcontact - Caller ID Lookup
 
 <i>Ketik /menu untuk info lengkap</i>

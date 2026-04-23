@@ -20,8 +20,11 @@ const commandPrompts = {
     'ceknik': '📝 Silakan kirim *NIK 16 digit* yang ingin dicek:',
     'ceknikv2': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK V2:',
     'nikv2': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK V2:',
+    'nikalamat': '📝 Silakan kirim *NIK 16 digit* untuk cek alamat:',
     'nama': '📝 Silakan kirim *Nama* yang ingin dicari:',
+    'nama2': '📝 Silakan kirim *Nama* yang ingin dicari (Sumber 2):',
     'kk': '📝 Silakan kirim *Nomor KK 16 digit* yang ingin dicek:',
+    'kkv2': '📝 Silakan kirim *Nomor KK 16 digit* untuk cek KK V2:',
     'edabu': '📝 Silakan kirim *NIK 16 digit* untuk cek BPJS:',
     'bpjstk': '📝 Silakan kirim *NIK 16 digit* untuk cek BPJS TK:',
     'nopol': '📝 Silakan kirim *Nomor Plat*\nContoh: F1331GW',
@@ -30,8 +33,7 @@ const commandPrompts = {
     'nikplat': '📝 Silakan kirim *NIK KTP pemilik*\nContoh: 3201381611850001',
     'databocor': '📝 Silakan kirim *query* (email/phone/name/domain) untuk dicari:',
     'getcontact': '📝 Silakan kirim *Nomor HP* untuk lookup caller ID (contoh: 081234567890):',
-    'nikfoto': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK + Foto:',
-    'nama2': '📝 Silakan kirim *Nama* yang ingin dicari (Sumber 2):'
+    'nikfoto': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK + Foto:'
 };
 
 // Banner
@@ -642,6 +644,28 @@ async function startBot() {
                 }
                 
                 // ═══════════════════════════════════════════
+                // CANCEL HANDLERS (Must be before menu_ handler)
+                // ═══════════════════════════════════════════
+                
+                // Cancel pending command from menu
+                if (data.startsWith('menu_cancel_')) {
+                    const targetUserId = parseInt(data.split('_')[2]);
+                    if (targetUserId === userId) {
+                        global.pendingCommands.delete(userId);
+                        await bot.answerCallbackQuery(query.id, { text: '✅ Dibatalkan' });
+                        await bot.deleteMessage(chatId, messageId).catch(() => {});
+                    }
+                    return;
+                }
+                
+                // Legacy cancel button handler (for old messages)
+                if (data.startsWith('cancel_')) {
+                    await bot.answerCallbackQuery(query.id, { text: '✅ Dibatalkan' });
+                    await bot.deleteMessage(chatId, messageId).catch(() => {});
+                    return;
+                }
+                
+                // ═══════════════════════════════════════════
                 // MENU FEATURE SELECTION HANDLER
                 // ═══════════════════════════════════════════
                 if (data.startsWith('menu_')) {
@@ -677,17 +701,6 @@ async function startBot() {
                             text: `❌ Command tidak dikenal: ${command}`,
                             show_alert: true
                         });
-                    }
-                    return;
-                }
-                
-                // Cancel pending command
-                if (data.startsWith('menu_cancel_')) {
-                    const targetUserId = parseInt(data.split('_')[2]);
-                    if (targetUserId === userId) {
-                        global.pendingCommands.delete(userId);
-                        await bot.answerCallbackQuery(query.id, { text: '✅ Dibatalkan' });
-                        await bot.deleteMessage(chatId, messageId).catch(() => {});
                     }
                     return;
                 }
