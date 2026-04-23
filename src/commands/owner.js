@@ -735,7 +735,7 @@ const ownerCommands = {
     async setcost(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nContoh: <code>/setcost edabumassal 3</code>\n<i>edabumassal = biaya per NIK</i>\n\nFitur: ceknomor, ceknomorv2, ceknik, ceknikv2, nama, nama2, kk, kkv2, nikalamat, edabu, edabumassal, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, getdata, nikfoto`,
+                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nContoh: <code>/setcost edabumassal 3</code>\n<i>edabumassal = biaya per NIK</i>\n\nFitur: ceknomor, ceknomorv2, ceknik, ceknikv2, nama, nama2, kk, kkv2, edabu, edabumassal, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, getdata, nikfoto`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -744,7 +744,7 @@ const ownerCommands = {
         const feature = args[0].toLowerCase();
         const cost = parseFloat(args[1]);
         
-        const validFeatures = ['ceknomor', 'ceknomorv2', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'kkv2', 'nikalamat', 'edabu', 'edabumassal', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'nikfoto'];
+        const validFeatures = ['ceknomor', 'ceknomorv2', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'kkv2', 'edabu', 'edabumassal', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'nikfoto'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -786,7 +786,7 @@ const ownerCommands = {
             'nama2': 'nama2_cost',
             'kk': 'kk_cost',
             'kkv2': 'kkv2_cost',
-            'nikalamat': 'nikalamat_cost',
+
             'edabu': 'edabu_cost',
             'edabumassal': 'edabumassal_cost',
             'bpjstk': 'bpjstk_cost',

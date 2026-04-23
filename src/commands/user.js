@@ -166,8 +166,7 @@ Pilih fitur yang ingin digunakan:
             ],
             // ── V2 Features ──
             [
-                { text: `🆔 CekNIK V2 (${parseInt(settings.checkv2_cost) || config.checkV2Cost}t)`, callback_data: 'menu_ceknikv2' },
-                { text: `📍 NIKAlamat (${parseInt(settings.nikalamat_cost) || config.nikAlamatCost}t)`, callback_data: 'menu_nikalamat' }
+                { text: `🆔 CekNIK V2 (${parseInt(settings.checkv2_cost) || config.checkV2Cost}t)`, callback_data: 'menu_ceknikv2' }
             ],
             [
                 { text: `👨‍👩‍👧‍👦 KK V2 (${parseInt(settings.kkv2_cost) || config.kkv2Cost}t)`, callback_data: 'menu_kkv2' },
@@ -513,59 +512,32 @@ Pilih fitur yang ingin digunakan:
         db.updateApiRequest(requestId, 'success', `${result.successCount}/${result.total} berhasil`, null, null, result);
         db.createTransaction(userId, 'check', actualCost, `EDABU Massal: ${result.successCount}/${result.total} OK`, nikList.join(','), 'success');
 
-        // Generate XLSX
-        try {
-            const XLSX = require('xlsx');
-            const wb = XLSX.utils.book_new();
-            const now = new Date();
-            const timestamp = `${now.getDate()}/${now.getMonth()+1}/${now.getFullYear()}, ${String(now.getHours()).padStart(2,'0')}.${String(now.getMinutes()).padStart(2,'0')}.${String(now.getSeconds()).padStart(2,'0')}`;
+        // Fetch alamat per NIK via SecureTrack
+        await bot.editMessageText(`⏳ <b>Mengambil data alamat...</b>\n\n📍 Fetching alamat untuk ${result.successCount} NIK\n🆔 ID: <code>${requestId}</code>`, {
+            chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
+        }).catch(() => {});
 
-            const rows = [];
-            rows.push(['Laporan BPJS Kesehatan Massal']);
-            rows.push([`Jenis: BPJS Kesehatan Massal   |   Waktu: ${timestamp}   |   Total NIK: ${nikList.length}   |   Cost Dipotong: ${actualCost}   |   Sukses: ${result.successCount}   |   Gagal: ${result.failedCount}`]);
-            rows.push([]);
-
-            for (const item of result.results) {
-                rows.push([`NIK Dicari: ${item.nik}`]);
-                rows.push(['Match NIK','NIK Peserta','No Kartu','No KK','Nama','Hub Keluarga','Jenis Kelamin','TTL','No HP','Email','Alamat','Kelurahan','Kecamatan','Kabupaten','Provinsi','Kode Pos','Status Peserta','Segmen','Tanggungan','Perusahaan','Kode PKS','TMT Pegawai','Keterangan']);
-
-                if (item.success && item.data) {
-                    const anggota = item.data.anggota || [];
-                    const raw = item.data.raw || [];
-                    if (anggota.length > 0) {
-                        anggota.forEach(p => {
-                            const isMatch = p.nik === item.nik ? 'YA' : '-';
-                            const rawData = raw.find(r => r.NIK === p.nik);
-                            rows.push([
-                                isMatch, p.nik || '-', p.noKartu || '-', '-', p.nama || '-',
-                                p.hubunganKeluarga || rawData?.KDHUBKEL || '-', p.jenisKelamin || '-',
-                                p.ttl || '-', p.noHP || '-', p.email || '-',
-                                '-', '-', '-', '-', '-', '-',
-                                p.status || p.statusPeserta || '-', rawData?.JNSPST?.KDJNSKPST || '-',
-                                rawData?.KDHUBKEL ? 'Ya (Tanggungan)' : '-',
-                                rawData?.NMPPK || '-', rawData?.KDPPK || '-', rawData?.TGLMULAIKERJA || '-',
-                                'Data found'
-                            ]);
-                        });
-                    } else {
-                        rows.push(['-',item.nik,'-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','Data found but no members']);
+        for (const item of result.results) {
+            if (item.success && item.data) {
+                const anggota = item.data.anggota || [];
+                const nikAddresses = {};
+                for (const p of anggota) {
+                    if (p.nik) {
+                        try {
+                            const addrResult = await apiService.checkNIKAlamat(p.nik);
+                            if (addrResult.success && addrResult.data) nikAddresses[p.nik] = addrResult.data;
+                        } catch (e) { /* skip */ }
+                        await new Promise(r => setTimeout(r, 500));
                     }
-                } else {
-                    rows.push(['-',item.nik,'-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-','-',item.error || 'Not found']);
                 }
-                rows.push([]);
+                item.nikAddresses = nikAddresses;
             }
+        }
 
-            const ws = XLSX.utils.aoa_to_sheet(rows);
-            ws['!cols'] = [{wch:10},{wch:18},{wch:16},{wch:10},{wch:30},{wch:15},{wch:12},{wch:25},{wch:15},{wch:30},{wch:15},{wch:15},{wch:15},{wch:15},{wch:15},{wch:10},{wch:12},{wch:25},{wch:15},{wch:35},{wch:12},{wch:18},{wch:15}];
-            XLSX.utils.book_append_sheet(wb, ws, 'Laporan');
-
-            const dateStr = `${now.getFullYear()}${String(now.getMonth()+1).padStart(2,'0')}${String(now.getDate()).padStart(2,'0')}_${String(now.getHours()).padStart(2,'0')}${String(now.getMinutes()).padStart(2,'0')}${String(now.getSeconds()).padStart(2,'0')}`;
-            const fileName = `bpjsmassal_${dateStr}.xlsx`;
-            const filePath = path.join(config.dataFolder || 'data', fileName);
-
-            if (!fs.existsSync(path.dirname(filePath))) fs.mkdirSync(path.dirname(filePath), { recursive: true });
-            XLSX.writeFile(wb, filePath);
+        // Generate styled XLSX
+        try {
+            const { generateEdabuMassalXlsx } = require('../utils/xlsxGenerator');
+            const { filePath, fileName } = generateEdabuMassalXlsx(result, nikList, actualCost, config.dataFolder || 'data');
 
             const updatedUser2 = db.getUser(userId);
             const finalRemaining = updatedUser2?.token_balance || 0;
@@ -1443,6 +1415,103 @@ Pilih fitur yang ingin digunakan:
             chat_id: msg.chat.id,
             message_id: processingMsg.message_id,
             parse_mode: 'HTML'
+        });
+    },
+
+    /**
+     * Command: /kkv2 <NO_KK>
+     * Cek KK V2 (ASEX API) + alamat via SecureTrack
+     */
+    async kkv2(bot, msg, args) {
+        const userId = msg.from.id;
+        const firstName = msg.from.first_name || 'User';
+        const username = msg.from.username || null;
+
+        if (!args || args.length === 0) {
+            await bot.sendMessage(msg.chat.id, '❌ <b>Format Salah</b>\n\nGunakan: <code>/kkv2 &lt;No.KK&gt;</code>\nContoh: <code>/kkv2 9101060912070170</code>', { parse_mode: 'HTML' });
+            return;
+        }
+
+        const kkNumber = args[0].replace(/\D/g, '');
+        if (kkNumber.length !== 16) {
+            await bot.sendMessage(msg.chat.id, '❌ <b>Nomor KK Tidak Valid</b>\n\nNo. KK harus <b>16 digit angka</b>', { parse_mode: 'HTML' });
+            return;
+        }
+
+        const user = db.getOrCreateUser(userId, username, firstName);
+        const settings = db.getAllSettings();
+
+        if (settings.mt_kkv2 === 'true') {
+            await bot.sendMessage(msg.chat.id, '⚠️ <b>MAINTENANCE</b>\n\nFitur <b>CEK KK V2</b> sedang dalam perbaikan.', { parse_mode: 'HTML' });
+            return;
+        }
+
+        const cost = parseInt(settings.kkv2_cost) || config.kkv2Cost;
+        if (user.token_balance < cost) {
+            await bot.sendMessage(msg.chat.id, `❌ <b>Saldo Tidak Cukup</b>\n\n🪙 Saldo: <b>${user.token_balance} token</b>\n💰 Biaya: <b>${cost} token</b>\n\nKetik /deposit untuk top up`, { parse_mode: 'HTML' });
+            return;
+        }
+
+        const requestId = db.createApiRequest(userId, 'kkv2', kkNumber, 'asex_kkv2', cost);
+        const processingMsg = await bot.sendMessage(msg.chat.id, `⏳ <b>Sedang Proses...</b>\n\n👨‍👩‍👧‍👦 Mencari KK V2: <b>${kkNumber}</b>\n🆔 ID: <code>${requestId}</code>`, { parse_mode: 'HTML' });
+
+        db.deductTokens(userId, cost);
+        let result = await apiService.checkKKV2(kkNumber);
+
+        const updatedUser = db.getUser(userId);
+        const remainingToken = updatedUser?.token_balance || 0;
+
+        if (!result.success) {
+            const cached = db.getCachedApiResponse('kkv2', kkNumber, 9999 / 24);
+            if (cached && cached.response_data) {
+                result = { success: true, data: cached.response_data, fromCache: true };
+            }
+        }
+
+        if (!result.success) {
+            if (result.refund) db.refundTokens(userId, cost);
+            db.updateApiRequest(requestId, 'failed', null, null, result.error);
+            db.createTransaction(userId, 'check', cost, `Cek KK V2 gagal`, kkNumber, 'failed');
+            await bot.editMessageText(`❌ <b>Gagal</b>\n\n${result.error}\n\n${result.refund ? `🪙 Token dikembalikan: <b>${cost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`, {
+                chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
+            });
+            return;
+        }
+
+        // Fetch alamat via SecureTrack
+        if (!result.fromCache) {
+            const allNiks = [];
+            if (result.data.KEPALA_KELUARGA?.NIK) allNiks.push(String(result.data.KEPALA_KELUARGA.NIK));
+            if (result.data.ANGGOTA) result.data.ANGGOTA.forEach(a => { if (a.NIK) allNiks.push(String(a.NIK)); });
+
+            if (allNiks.length > 0) {
+                try {
+                    await bot.editMessageText(`⏳ <b>Data KK ditemukan!</b>\n📍 Mengambil data alamat...\n🆔 ID: <code>${requestId}</code>`, {
+                        chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
+                    }).catch(() => {});
+                    const alamatResult = await apiService.checkNIKAlamat(allNiks[0]);
+                    if (alamatResult.success && alamatResult.data) {
+                        const d = alamatResult.data;
+                        result.data._alamat = {
+                            alamat: d.alamat || '-', rt: d.rt || '-', rw: d.rw || '-',
+                            kelurahan: d.kel_nama || d.kel || '-', kecamatan: d.kec_nama || d.kec || '-',
+                            kabupaten: d.kab_nama || d.kab || '-', provinsi: d.prov_nama || d.prov || '-',
+                            alamat_lengkap: d.alamat_lengkap || '-'
+                        };
+                    }
+                } catch (e) { console.log(`⚠️ Failed to fetch alamat for KK V2: ${e.message}`); }
+            }
+
+            db.updateApiRequest(requestId, 'success', `${result.data.JUMLAH_ANGGOTA || 0} anggota`, null, null, result.data);
+        }
+        db.createTransaction(userId, 'check', cost, `Cek KK V2 berhasil${result.fromCache ? ' (cache)' : ''}`, kkNumber, 'success');
+
+        const { kkv2ResultMessage } = require('../utils/formatter');
+        let text = kkv2ResultMessage(result.data, kkNumber, cost, requestId, remainingToken);
+        if (result.fromCache) text = `📦 <i>Data dari cache</i>\n\n` + text;
+
+        await bot.editMessageText(text, {
+            chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML'
         });
     },
 

@@ -22,7 +22,7 @@ const commandPrompts = {
     'ceknik': '📝 Silakan kirim *NIK 16 digit* yang ingin dicek:',
     'ceknikv2': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK V2:',
     'nikv2': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK V2:',
-    'nikalamat': '📝 Silakan kirim *NIK 16 digit* untuk cek alamat:',
+
     'nama': '📝 Silakan kirim *Nama* yang ingin dicari:',
     'nama2': '📝 Silakan kirim *Nama* yang ingin dicari (Sumber 2):',
     'kk': '📝 Silakan kirim *Nomor KK 16 digit* yang ingin dicek:',

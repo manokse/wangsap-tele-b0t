@@ -89,7 +89,6 @@ function menuMessage() {
     const nama2Cost = parseInt(settings.nama2_cost) || config.nama2Cost;
     const kkCost = parseInt(settings.kk_cost) || config.kkCost;
     const kkv2Cost = parseInt(settings.kkv2_cost) || config.kkv2Cost;
-    const nikAlamatCost = parseInt(settings.nikalamat_cost) || config.nikAlamatCost;
     const ceknomorCost = parseInt(settings.ceknomor_cost) || config.ceknomorCost;
     const ceknomorv2Cost = parseInt(settings.ceknomorv2_cost) || config.ceknomorv2Cost;
     const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
@@ -118,7 +117,6 @@ ${LINE.sep}
 ${EMOJI.search} <b>DATA KEPENDUDUKAN (V2)</b>
 ${LINE.sep}
 🆔 /ceknikv2 • <code>${checkV2Cost} token</code>
-📍 /nikalamat • <code>${nikAlamatCost} token</code>
 👨‍👩‍👧‍👦 /kkv2 • <code>${kkv2Cost} token</code>
 📱 /ceknomorv2 • <code>${ceknomorv2Cost} token</code>
 👤 /nama2 • <code>${nama2Cost} token</code>
@@ -288,7 +286,6 @@ ${EMOJI.sparkle} <b>FITUR PENCARIAN V1:</b>
 
 ${EMOJI.sparkle} <b>FITUR PENCARIAN V2:</b>
 🆔 /ceknikv2 - Cek NIK V2
-📍 /nikalamat - NIK to Alamat
 👨‍👩‍👧‍👦 /kkv2 - Cek KK V2
 📱 /ceknomorv2 - Cek Nomor HP V2
 👤 /nama2 - Cari Nama V2
@@ -1556,13 +1553,27 @@ function kkv2ResultMessage(data, nkk, tokenUsed, requestId = '', remainingToken 
     const kepala = data.KEPALA_KELUARGA;
     const anggota = data.ANGGOTA || [];
     const jumlah = data.JUMLAH_ANGGOTA || 0;
+    const alamat = data._alamat || null;
 
-    let msg = `👨‍👩‍👧‍👦 <b>HASIL CEK KK V2</b>
+    let msg = `👨‍👩‍👧‍👦 <b>DATA KARTU KELUARGA V2</b>
 ${LINE.double}
 
 <b>━━━ 📋 INFO KK ━━━</b>
 🪪 No. KK: <code>${nkk || '-'}</code>
 👥 Anggota: <b>${jumlah} orang</b>`;
+
+    // Alamat KK (from SecureTrack)
+    if (alamat) {
+        msg += `
+
+<b>━━━ 🏠 ALAMAT KK ━━━</b>
+${escapeHtml(alamat.alamat || '-')}
+RT/RW: ${alamat.rt || '-'}/${alamat.rw || '-'}
+🏘️ Kel: ${escapeHtml(alamat.kelurahan || '-')}
+🏙️ Kec: ${escapeHtml(alamat.kecamatan || '-')}
+🌆 Kab: ${escapeHtml(alamat.kabupaten || '-')}
+🗺️ Prov: ${escapeHtml(alamat.provinsi || '-')}`;
+    }
 
     // Kepala Keluarga
     if (kepala) {
@@ -1665,7 +1676,6 @@ module.exports = {
     kkResultMessage,
     ceknomorv2ResultMessage,
     kkv2ResultMessage,
-    nikAlamatResultMessage,
     edabuResultMessage,
     bpjstkResultMessage,
     nopolResultMessage,
