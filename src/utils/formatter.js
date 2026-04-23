@@ -1488,6 +1488,104 @@ ${LINE.thin}
     return msg;
 }
 
+/**
+ * Format hasil KK V2 (ASEX API)
+ */
+function kkv2ResultMessage(data, nkk, tokenUsed, requestId = '', remainingToken = 0) {
+    const kepala = data.KEPALA_KELUARGA;
+    const anggota = data.ANGGOTA || [];
+    const jumlah = data.JUMLAH_ANGGOTA || 0;
+
+    let msg = `👨‍👩‍👧‍👦 <b>HASIL CEK KK V2</b>
+${LINE.double}
+
+<b>━━━ 📋 INFO KK ━━━</b>
+🪪 No. KK: <code>${nkk || '-'}</code>
+👥 Anggota: <b>${jumlah} orang</b>`;
+
+    // Kepala Keluarga
+    if (kepala) {
+        const jk = kepala.JENIS_KELAMIN === 'M' ? 'Laki-Laki' : kepala.JENIS_KELAMIN === 'F' ? 'Perempuan' : kepala.JENIS_KELAMIN || '-';
+        const ttl = kepala.TANGGAL_LAHIR ? kepala.TANGGAL_LAHIR.split(' ')[0] : '-';
+        msg += `
+
+<b>━━━ KEPALA KELUARGA ━━━</b>
+🆔 NIK: <code>${kepala.NIK || '-'}</code>
+👤 Nama: <b>${escapeHtml(kepala.NAMA_LENGKAP || '-')}</b>
+📅 TTL: ${escapeHtml(kepala.TEMPAT_LAHIR || '-')}, ${escapeHtml(ttl)}
+⚧️ JK: ${escapeHtml(jk)}
+🕌 Agama: ${escapeHtml(kepala.AGAMA || '-')}
+🩸 Gol. Darah: ${escapeHtml(kepala.GOL_DARAH || '-')}
+🎓 Pendidikan: ${escapeHtml(kepala.PENDIDIKAN || '-')}
+💍 Status: ${escapeHtml(kepala.STATUS_PERNIKAHAN || '-')}
+💼 Pekerjaan: ${escapeHtml(kepala.PEKERJAAN || '-')}
+👨 Ayah: ${escapeHtml(kepala.NAMA_LGKP_AYAH || '-')}
+👩 Ibu: ${escapeHtml(kepala.NAMA_LGKP_IBU || '-')}`;
+    }
+
+    // Anggota Keluarga
+    if (anggota.length > 0) {
+        msg += `\n\n<b>━━━ ANGGOTA KELUARGA (${anggota.length}) ━━━</b>`;
+        anggota.forEach((member, index) => {
+            const jk = member.JENIS_KELAMIN === 'M' ? 'Laki-Laki' : member.JENIS_KELAMIN === 'F' ? 'Perempuan' : member.JENIS_KELAMIN || '-';
+            const ttl = member.TANGGAL_LAHIR ? member.TANGGAL_LAHIR.split(' ')[0] : '-';
+            msg += `\n\n${index + 1}. <b>${escapeHtml(member.NAMA_LENGKAP || '-')}</b>`;
+            msg += `\n   NIK: <code>${member.NIK || '-'}</code>`;
+            msg += `\n   TTL: ${escapeHtml(member.TEMPAT_LAHIR || '-')}, ${escapeHtml(ttl)}`;
+            msg += `\n   JK: ${escapeHtml(jk)}`;
+            msg += `\n   Agama: ${escapeHtml(member.AGAMA || '-')}`;
+            msg += `\n   Status: ${escapeHtml(member.STATUS_PERNIKAHAN || '-')} (${escapeHtml(member.STATUS_HUBUNGAN_KELUARGA || '-')})`;
+            msg += `\n   Gol. Darah: ${escapeHtml(member.GOL_DARAH || '-')}`;
+            msg += `\n   Pendidikan: ${escapeHtml(member.PENDIDIKAN || '-')}`;
+            msg += `\n   Pekerjaan: ${escapeHtml(member.PEKERJAAN || '-')}`;
+            msg += `\n   Ayah: ${escapeHtml(member.NAMA_LGKP_AYAH || '-')}`;
+            msg += `\n   Ibu: ${escapeHtml(member.NAMA_LGKP_IBU || '-')}`;
+        });
+    }
+
+    msg += `
+
+${LINE.thin}
+🆔 ID: <code>${requestId}</code>
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
+`;
+    return msg;
+}
+
+/**
+ * Format hasil NIK to Alamat (SecureTrack API)
+ */
+function nikAlamatResultMessage(data, nik, tokenUsed, requestId = '', remainingToken = 0) {
+    const jk = data.gender || '-';
+    const ttl = data.tgl_lahir || '-';
+
+    let msg = `📍 <b>HASIL NIK TO ALAMAT</b>
+${LINE.double}
+
+<b>━━━ 📋 IDENTITAS ━━━</b>
+🆔 NIK: <code>${data.nomor_induk || nik}</code>
+👤 Nama: <b>${escapeHtml(data.nama || '-')}</b>
+📅 Tgl Lahir: ${escapeHtml(ttl)}
+⚧️ JK: ${escapeHtml(jk)}
+
+<b>━━━ 🏠 ALAMAT LENGKAP ━━━</b>
+${escapeHtml(data.alamat || '-')}
+RT/RW: ${data.rt || '-'}/${data.rw || '-'}
+🏘️ Kel: ${escapeHtml(data.kel_nama || data.kel || '-')}
+🏙️ Kec: ${escapeHtml(data.kec_nama || data.kec || '-')}
+🌆 Kab: ${escapeHtml(data.kab_nama || data.kab || '-')}
+🗺️ Prov: ${escapeHtml(data.prov_nama || data.prov || '-')}
+
+<b>━━━ 🗺️ ALAMAT FULL ━━━</b>
+${escapeHtml(data.alamat_lengkap || '-')}
+
+${LINE.thin}
+🆔 ID: <code>${requestId}</code>
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
+`;
+    return msg;
+}
+
 module.exports = {
     EMOJI,
     LINE,
@@ -1504,6 +1602,8 @@ module.exports = {
     namaResultMessage,
     nama2ResultMessage,
     kkResultMessage,
+    kkv2ResultMessage,
+    nikAlamatResultMessage,
     edabuResultMessage,
     bpjstkResultMessage,
     nopolResultMessage,

@@ -63,6 +63,8 @@ module.exports = {
     namaCost: parseInt(process.env.NAMA_COST) || 3,
     nama2Cost: parseInt(process.env.NAMA2_COST) || 3,
     kkCost: parseInt(process.env.KK_COST) || 3,
+    kkv2Cost: parseInt(process.env.KKV2_COST) || 3,
+    nikAlamatCost: parseInt(process.env.NIKALAMAT_COST) || 2,
     fotoCost: parseInt(process.env.FOTO_COST) || 5,
     edabuCost: parseInt(process.env.EDABU_COST) || 3,
     bpjstkCost: parseInt(process.env.BPJSTK_COST) || 3,

@@ -973,6 +973,95 @@ class APIService {
             return this.handleError(error);
         }
     }
+
+    /**
+     * ═══════════════════════════════════════════
+     * CEK KK V2 (ASEX API)
+     * /kkv2 <NO_KK>
+     * ═══════════════════════════════════════════
+     */
+    async checkKKV2(noKK) {
+        try {
+            const cleanKK = String(noKK || '').replace(/\D/g, '');
+            const apiKey = 'fb1010b8c2bece281a954bdb08dca7c2';
+            const url = `https://apiv3.asexapi.cloud/kk2data/?api_key=${apiKey}&no_kk=${encodeURIComponent(cleanKK)}`;
+
+            console.log(`🔍 [ASEX KKv2] Checking KK: ${cleanKK}`);
+
+            const response = await axios.get(url, {
+                timeout: 60000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+
+            const data = response.data;
+            
+            if (!data || data.STATUS !== 'OK' || !data.KEPALA_KELUARGA) {
+                return {
+                    success: false,
+                    error: 'Data KK tidak ditemukan',
+                    refund: true
+                };
+            }
+
+            console.log(`✅ [ASEX KKv2] KK found: ${data.KEPALA_KELUARGA.NAMA_LENGKAP}`);
+
+            return {
+                success: true,
+                data: data,
+                refund: false
+            };
+
+        } catch (error) {
+            console.error('ASEX KKv2 API Error:', error.message);
+            return this.handleError(error);
+        }
+    }
+
+    /**
+     * ═══════════════════════════════════════════
+     * NIK TO ALAMAT (SecureTrack API)
+     * /nikalamat <NIK>
+     * ═══════════════════════════════════════════
+     */
+    async checkNIKAlamat(nik) {
+        try {
+            const cleanNik = String(nik || '').replace(/\D/g, '');
+            const url = `https://securetrack.id/api/ceknik.php?nik=${encodeURIComponent(cleanNik)}`;
+
+            console.log(`🔍 [SecureTrack Alamat] Checking NIK: ${cleanNik}`);
+
+            const response = await axios.get(url, {
+                timeout: 60000,
+                headers: {
+                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                }
+            });
+
+            const payload = response.data;
+            
+            if (!payload || payload.success !== true || !payload.data) {
+                return {
+                    success: false,
+                    error: payload?.message || 'Data tidak ditemukan',
+                    refund: true
+                };
+            }
+
+            console.log(`✅ [SecureTrack Alamat] NIK found: ${payload.data.nama}`);
+
+            return {
+                success: true,
+                data: payload.data,
+                refund: false
+            };
+
+        } catch (error) {
+            console.error('SecureTrack Alamat API Error:', error.message);
+            return this.handleError(error);
+        }
+    }
 }
 
 module.exports = new APIService();
