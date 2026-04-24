@@ -660,7 +660,7 @@ const ownerCommands = {
     async setmt(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, ceknikv2, nama, nama2, kk, ceknomor, edabu, bpjstk, nopol, databocor, getcontact, nikfoto`,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, ceknikv2, nama, nama2, kk, kkv2, ceknomor, ceknomorv2, edabu, edabumassal, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, nikfoto\nContoh: <code>/setmt edabumassal on</code>`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -677,7 +677,7 @@ const ownerCommands = {
             return;
         }
 
-        const validFeatures = ['all', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'ceknomor', 'edabu', 'bpjstk', 'nopol', 'databocor', 'getcontact', 'nikfoto'];
+        const validFeatures = ['all', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'kkv2', 'ceknomor', 'ceknomorv2', 'edabu', 'edabumassal', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'nikfoto'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -857,56 +857,48 @@ const ownerCommands = {
     async settings(bot, msg) {
         const settings = db.getAllSettings();
         const tokenPrice = parseInt(settings.token_price) || config.tokenPrice;
-        const checkCost = parseInt(settings.check_cost) || config.checkCost;
-        const namaCost = parseInt(settings.nama_cost) || config.namaCost;
-        const kkCost = parseInt(settings.kk_cost) || config.kkCost;
-        const ceknomorCost = parseInt(settings.ceknomor_cost) || config.ceknomorCost;
-        const edabuCost = parseInt(settings.edabu_cost) || config.edabuCost;
-        const nopolCost = parseInt(settings.nopol_cost) || config.nopolCost;
-        const nokaCost = parseInt(settings.noka_cost) || config.nokaCost;
-        const nosinCost = parseInt(settings.nosin_cost) || config.nosinCost;
-        const nikplatCost = parseInt(settings.nikplat_cost) || config.nikplatCost;
-        const databocorCost = parseInt(settings.databocor_cost) || config.databocorCost || 3;
-        const getcontactCost = parseInt(settings.getcontact_cost) || config.getcontactCost || 3;
         const getdataCost = parseFloat(settings.getdata_cost) || config.getdataCost;
-        const nikfotoCost = parseInt(settings.nikfoto_cost) || config.nikfotoCost;
-        
-        const mtCeknik = settings.mt_ceknik === 'true' ? '🔴 ON' : '🟢 OFF';
-        const mtNama = settings.mt_nama === 'true' ? '🔴 ON' : '🟢 OFF';
-        const mtKk = settings.mt_kk === 'true' ? '🔴 ON' : '🟢 OFF';
-        const mtCeknomor = settings.mt_ceknomor === 'true' ? '🔴 ON' : '🟢 OFF';
-        const mtEdabu = settings.mt_edabu === 'true' ? '🔴 ON' : '🟢 OFF';
-        const mtNopol = settings.mt_nopol === 'true' ? '🔴 ON' : '🟢 OFF';
-        const mtNikfoto = settings.mt_nikfoto === 'true' ? '🔴 ON' : '🟢 OFF';
+
+        // Helper to get cost
+        const gc = (key, fallback) => parseInt(settings[key]) || fallback;
+        // Helper to get maintenance status
+        const mt = (key) => settings[`mt_${key}`] === 'true' ? '🔴 ON' : '🟢 OFF';
 
         let text = `<b>╔════════════════╗</b>\n<b>║</b>  ⚙️ <b>SETTINGS</b>\n<b>╚════════════════╝</b>\n`;
         
         text += '\n<b>━━━ 💰 HARGA ━━━</b>\n';
         text += `Token: <b>${formatter.formatRupiah(tokenPrice)}</b>\n`;
         
-        text += '\n<b>━━━ 🪙 BIAYA ━━━</b>\n';
-        text += `ceknomor: ${ceknomorCost}t\n`;
-        text += `ceknik: ${checkCost}t\n`;
-        text += `nama: ${namaCost}t\n`;
-        text += `kk: ${kkCost}t\n`;
-        text += `edabu: ${edabuCost}t\n`;
-        text += `nopol: ${nopolCost}t\n`;
-        text += `noka: ${nokaCost}t\n`;
-        text += `nosin: ${nosinCost}t\n`;
-        text += `nikplat: ${nikplatCost}t\n`;
-        text += `databocor: ${databocorCost}t\n`;
-        text += `getcontact: ${getcontactCost}t\n`;
-        text += `nikfoto: ${nikfotoCost}t\n`;
+        text += '\n<b>━━━ 🪙 BIAYA V1 ━━━</b>\n';
+        text += `ceknik: ${gc('check_cost', config.checkCost)}t\n`;
+        text += `nama: ${gc('nama_cost', config.namaCost)}t\n`;
+        text += `kk: ${gc('kk_cost', config.kkCost)}t\n`;
+        text += `ceknomor: ${gc('ceknomor_cost', config.ceknomorCost)}t\n`;
+        text += `nikfoto: ${gc('nikfoto_cost', config.nikfotoCost)}t\n`;
+
+        text += '\n<b>━━━ 🪙 BIAYA V2 ━━━</b>\n';
+        text += `ceknikv2: ${gc('checkv2_cost', config.checkV2Cost)}t\n`;
+        text += `kkv2: ${gc('kkv2_cost', config.kkv2Cost)}t\n`;
+        text += `ceknomorv2: ${gc('ceknomorv2_cost', config.ceknomorv2Cost)}t\n`;
+        text += `nama2: ${gc('nama2_cost', config.nama2Cost)}t\n`;
+
+        text += '\n<b>━━━ 🪙 BPJS & KENDARAAN ━━━</b>\n';
+        text += `edabu: ${gc('edabu_cost', config.edabuCost)}t\n`;
+        text += `edabumassal: ${gc('edabumassal_cost', config.edabuMassalCost)}t/NIK\n`;
+        text += `bpjstk: ${gc('bpjstk_cost', config.bpjstkCost)}t\n`;
+        text += `nopol: ${gc('nopol_cost', config.nopolCost)}t\n`;
+        text += `noka: ${gc('noka_cost', config.nokaCost)}t\n`;
+        text += `nosin: ${gc('nosin_cost', config.nosinCost)}t\n`;
+        text += `nikplat: ${gc('nikplat_cost', config.nikplatCost)}t\n`;
+
+        text += '\n<b>━━━ 🪙 LAINNYA ━━━</b>\n';
+        text += `databocor: ${gc('databocor_cost', config.databocorCost || 3)}t\n`;
+        text += `getcontact: ${gc('getcontact_cost', config.getcontactCost || 3)}t\n`;
         text += `getdata: ${getdataCost}t\n`;
         
         text += '\n<b>━━━ 🛠️ MAINTENANCE ━━━</b>\n';
-        text += `ceknik: ${mtCeknik}\n`;
-        text += `nama: ${mtNama}\n`;
-        text += `kk: ${mtKk}\n`;
-        text += `ceknomor: ${mtCeknomor}\n`;
-        text += `edabu: ${mtEdabu}\n`;
-        text += `nopol: ${mtNopol}\n`;
-        text += `nikfoto: ${mtNikfoto}\n`;
+        const allFeatures = ['ceknik','ceknikv2','nama','nama2','kk','kkv2','ceknomor','ceknomorv2','edabu','edabumassal','bpjstk','nopol','noka','nosin','nikplat','databocor','getcontact','nikfoto'];
+        allFeatures.forEach(f => { text += `${f}: ${mt(f)}\n`; });
 
         await bot.sendMessage(msg.chat.id, text, { 
             parse_mode: 'HTML',
