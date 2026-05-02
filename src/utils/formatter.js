@@ -113,6 +113,7 @@ ${LINE.sep}
 👨‍👩‍👧‍👦 /kk • <code>${kkCost} token</code>
 📱 /ceknomor • <code>${ceknomorCost} token</code>
 📸 /nikfoto • <code>${nikfotoCost} token</code>
+📋 /niklengkap • <code>${parseInt(settings.niklengkap_cost) || config.nikLengkapCost} token</code>
 
 ${EMOJI.search} <b>DATA KEPENDUDUKAN (V2)</b>
 ${LINE.sep}
@@ -240,6 +241,10 @@ Harga: ${formatRupiah(tokenPrice)}/token
 📸 <b>/nikfoto</b> &lt;NIK&gt;
    Biaya: <code>${nikfotoCost} token</code>
    Data: Foto + Data Lengkap + Family Tree
+
+📋 <b>/niklengkap</b> &lt;NIK&gt;
+   Biaya: <code>${parseInt(settings.niklengkap_cost) || config.nikLengkapCost} token</code>
+   Data: Foto + NIK + KK + Alamat + BPJS
 
 👤 <b>/nama2</b> &lt;Nama&gt;
    Biaya: <code>${nama2Cost} token</code>
@@ -1515,6 +1520,220 @@ ${LINE.thin}
     return msg;
 }
 
+// ═══════════════════════════════════════════
+// NIK LENGKAP RESULT MESSAGE (Gabungan 4 API)
+// Foto + Data NIK + KK + Alamat + BPJS
+// ═══════════════════════════════════════════
+function nikLengkapResultMessage(data, tokenUsed, requestId = '', remainingToken = 0) {
+    const nikfoto = data.nikfoto;
+    const kk = data.kk;
+    const alamat = data.alamat;
+    const bpjs = data.bpjs;
+    const errors = data.errors || [];
+
+    const genderMap = { 'M': 'Laki-Laki', 'F': 'Perempuan' };
+
+    let msg = `📋 <b>CEK NIK LENGKAP</b>
+${LINE.double}\n`;
+
+    // ═══ SECTION 1: DATA IDENTITAS (dari nikfoto/cid2full) ═══
+    if (nikfoto) {
+        const jk = genderMap[nikfoto.JENIS_KELAMIN] || nikfoto.JENIS_KELAMIN || '-';
+        let ttl = nikfoto.TANGGAL_LAHIR || '-';
+        if (ttl && ttl.includes(' ')) ttl = ttl.split(' ')[0];
+
+        msg += `
+<b>━━━ 📸 DATA IDENTITAS ━━━</b>
+🆔 NIK: <code>${nikfoto.NIK || '-'}</code>
+🪪 No. KK: <code>${nikfoto.NO_KK || '-'}</code>
+👤 Nama: <b>${escapeHtml(nikfoto.NAMA_LENGKAP || '-')}</b>
+📅 TTL: ${escapeHtml(nikfoto.TEMPAT_LAHIR || '-')}, ${escapeHtml(ttl)}
+⚧️ JK: ${escapeHtml(jk)}
+🕌 Agama: ${escapeHtml(nikfoto.AGAMA || '-')}
+🩸 Gol. Darah: ${escapeHtml(nikfoto.GOL_DARAH || '-')}
+🎓 Pendidikan: ${escapeHtml(nikfoto.PENDIDIKAN || '-')}
+💍 Status: ${escapeHtml(nikfoto.STATUS_PERNIKAHAN || '-')}
+👨‍👩‍👧 Hubungan: ${escapeHtml(nikfoto.STATUS_HUBUNGAN_KELUARGA || '-')}
+💼 Pekerjaan: ${escapeHtml(nikfoto.PEKERJAAN || '-')}`;
+
+        if (!data.hasPhoto) {
+            msg += `\n\n⚠️ <i>Foto tidak ditemukan untuk NIK ini</i>`;
+        }
+    } else {
+        msg += `\n❌ <i>Data NIK tidak ditemukan</i>`;
+    }
+
+    // ═══ SECTION 2: DATA ALAMAT (dari SecureTrack) ═══
+    if (alamat) {
+        msg += `
+
+<b>━━━ 📍 DATA ALAMAT ━━━</b>
+🏠 Alamat: ${escapeHtml(alamat.alamat || '-')}
+RT/RW: ${alamat.rt ?? '-'}/${alamat.rw ?? '-'}
+🏘️ Kel: ${escapeHtml(alamat.kel_nama || alamat.kel || '-')}
+🏙️ Kec: ${escapeHtml(alamat.kec_nama || alamat.kec || '-')}
+🌆 Kab: ${escapeHtml(alamat.kab_nama || alamat.kab || '-')}
+🗺️ Prov: ${escapeHtml(alamat.prov_nama || alamat.prov || '-')}
+
+🗺️ <b>Alamat Lengkap:</b>
+${escapeHtml(alamat.alamat_lengkap || '-')}`;
+    } else {
+        msg += `
+
+<b>━━━ 📍 DATA ALAMAT ━━━</b>
+⚠️ <i>Data alamat tidak ditemukan</i>`;
+    }
+
+    // ═══ SECTION 3: DATA KK (dari kk2data) ═══
+    if (kk) {
+        const kepala = kk.KEPALA_KELUARGA;
+        const anggota = kk.ANGGOTA || [];
+        const jumlah = kk.JUMLAH_ANGGOTA || 0;
+
+        msg += `
+
+<b>━━━ 👨‍👩‍👧‍👦 DATA KARTU KELUARGA ━━━</b>
+🪪 No. KK: <code>${kk.NO_KK || '-'}</code>
+👥 Jumlah Anggota: <b>${jumlah} orang</b>`;
+
+        // Kepala Keluarga
+        if (kepala) {
+            const kJk = genderMap[kepala.JENIS_KELAMIN] || kepala.JENIS_KELAMIN || '-';
+            let kTtl = kepala.TANGGAL_LAHIR || '-';
+            if (kTtl && kTtl.includes(' ')) kTtl = kTtl.split(' ')[0];
+
+            msg += `
+
+<b>👑 KEPALA KELUARGA</b>
+🆔 NIK: <code>${kepala.NIK || '-'}</code>
+👤 Nama: <b>${escapeHtml(kepala.NAMA_LENGKAP || '-')}</b>
+📅 TTL: ${escapeHtml(kepala.TEMPAT_LAHIR || '-')}, ${escapeHtml(kTtl)}
+⚧️ JK: ${escapeHtml(kJk)}
+🕌 Agama: ${escapeHtml(kepala.AGAMA || '-')}
+🩸 Gol. Darah: ${escapeHtml(kepala.GOL_DARAH || '-')}
+🎓 Pendidikan: ${escapeHtml(kepala.PENDIDIKAN || '-')}
+💍 Status: ${escapeHtml(kepala.STATUS_PERNIKAHAN || '-')}
+💼 Pekerjaan: ${escapeHtml(kepala.PEKERJAAN || '-')}
+👨 Ayah: ${escapeHtml(kepala.NAMA_LGKP_AYAH || '-')}
+👩 Ibu: ${escapeHtml(kepala.NAMA_LGKP_IBU || '-')}`;
+        }
+
+        // Anggota Keluarga
+        if (anggota.length > 0) {
+            msg += `\n\n<b>👥 ANGGOTA KELUARGA (${anggota.length})</b>`;
+            anggota.forEach((member, index) => {
+                const mJk = genderMap[member.JENIS_KELAMIN] || member.JENIS_KELAMIN || '-';
+                let mTtl = member.TANGGAL_LAHIR || '-';
+                if (mTtl && mTtl.includes(' ')) mTtl = mTtl.split(' ')[0];
+                msg += `\n\n${index + 1}. <b>${escapeHtml(member.NAMA_LENGKAP || '-')}</b>`;
+                msg += `\n   NIK: <code>${member.NIK || '-'}</code>`;
+                msg += `\n   TTL: ${escapeHtml(member.TEMPAT_LAHIR || '-')}, ${escapeHtml(mTtl)}`;
+                msg += `\n   JK: ${escapeHtml(mJk)}`;
+                msg += `\n   Agama: ${escapeHtml(member.AGAMA || '-')}`;
+                msg += `\n   Status: ${escapeHtml(member.STATUS_PERNIKAHAN || '-')} (${escapeHtml(member.STATUS_HUBUNGAN_KELUARGA || '-')})`;
+                msg += `\n   Gol. Darah: ${escapeHtml(member.GOL_DARAH || '-')}`;
+                msg += `\n   Pendidikan: ${escapeHtml(member.PENDIDIKAN || '-')}`;
+                msg += `\n   Pekerjaan: ${escapeHtml(member.PEKERJAAN || '-')}`;
+                msg += `\n   Ayah: ${escapeHtml(member.NAMA_LGKP_AYAH || '-')}`;
+                msg += `\n   Ibu: ${escapeHtml(member.NAMA_LGKP_IBU || '-')}`;
+            });
+        }
+    } else {
+        msg += `
+
+<b>━━━ 👨‍👩‍👧‍👦 DATA KK ━━━</b>
+⚠️ <i>Data KK tidak ditemukan</i>`;
+    }
+
+    // ═══ SECTION 4: DATA BPJS (dari EDABU) ═══
+    if (bpjs) {
+        const bpjsAnggota = bpjs.anggota || [];
+        const bpjsRaw = bpjs.raw || [];
+        const nikDicari = bpjs.nik_dicari || '-';
+        const jumlahBpjs = bpjs.jumlah_anggota || bpjsAnggota.length;
+
+        const getHubungan = (pNik) => {
+            const rawData = bpjsRaw.find(r => r.NIK === pNik);
+            if (!rawData) return '-';
+            const kode = rawData.KDHUBKEL?.toString();
+            const hubMap = { '1': 'PEKERJA', '3': 'ISTRI', '4': 'ANAK', '10': 'Suami/Istri' };
+            return hubMap[kode] || rawData.NMHUBKEL || '-';
+        };
+        const getPerusahaan = (pNik) => {
+            const rawData = bpjsRaw.find(r => r.NIK === pNik);
+            return rawData?.JNSPST?.NMPKS || '-';
+        };
+
+        msg += `
+
+<b>━━━ 🏥 DATA BPJS KESEHATAN ━━━</b>
+🔍 NIK Dicari: <code>${nikDicari}</code>
+👥 Jumlah Anggota: <b>${jumlahBpjs}</b>`;
+
+        if (bpjsAnggota.length > 0) {
+            bpjsAnggota.forEach((p, index) => {
+                const hubungan = getHubungan(p.nik);
+                const perusahaan = getPerusahaan(p.nik);
+                const statusIcon = p.status?.toLowerCase().includes('aktif') ? '🟢' : '🔴';
+
+                let ttlFixed = p.ttl || '-';
+                if (p.ttl && p.ttl !== '-') {
+                    try {
+                        const ttlMatch = p.ttl.match(/(.*?),\s*(\d{4})-(\d{2})-(\d{2})/);
+                        if (ttlMatch) {
+                            const [, tempat, year, month, day] = ttlMatch;
+                            const date = new Date(year, month - 1, parseInt(day));
+                            date.setDate(date.getDate() + 1);
+                            const fixedDay = String(date.getDate()).padStart(2, '0');
+                            const fixedMonth = String(date.getMonth() + 1).padStart(2, '0');
+                            const fixedYear = date.getFullYear();
+                            ttlFixed = `${tempat}, ${fixedDay}-${fixedMonth}-${fixedYear}`;
+                        }
+                    } catch (e) {
+                        ttlFixed = p.ttl;
+                    }
+                }
+
+                msg += `
+
+<b>BPJS ANGGOTA ${index + 1}</b> ( ${escapeHtml(hubungan.toLowerCase())} )
+${LINE.thin}
+👤 Nama: ${escapeHtml(p.nama || '-')}
+🆔 NIK: <code>${p.nik || '-'}</code>
+💳 No Kartu: <code>${p.noKartu || '-'}</code>
+⚧️ JK: ${escapeHtml(p.jenisKelamin || '-')}
+📅 TTL: ${escapeHtml(ttlFixed)}
+📧 Email: ${escapeHtml(p.email || '-')}
+📱 No HP: ${escapeHtml(p.noHP || '-')}
+💼 Hubungan: <b>${escapeHtml(hubungan)}</b>
+${statusIcon} Status: <b>${escapeHtml(p.status || '-')}</b>
+🏢 Perusahaan: ${escapeHtml(perusahaan)}`;
+            });
+        }
+    } else {
+        msg += `
+
+<b>━━━ 🏥 DATA BPJS ━━━</b>
+⚠️ <i>Data BPJS tidak ditemukan</i>`;
+    }
+
+    // ═══ ERRORS (jika ada) ═══
+    if (errors.length > 0) {
+        msg += `\n\n<b>━━━ ⚠️ CATATAN ━━━</b>`;
+        errors.forEach(err => {
+            msg += `\n• ${escapeHtml(err)}`;
+        });
+    }
+
+    msg += `
+
+${LINE.thin}
+🆔 ID: <code>${requestId}</code>
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
+`;
+    return msg;
+}
+
 /**
  * Format hasil KK V2 (ASEX API)
  */
@@ -1670,6 +1889,7 @@ module.exports = {
     balanceMessage,
     nikResultMessage,
     nikfotoResultMessage,
+    nikLengkapResultMessage,
     ceknomorResultMessage,
     namaResultMessage,
     nama2ResultMessage,

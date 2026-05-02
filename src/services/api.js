@@ -799,6 +799,89 @@ class APIService {
     }
 
     /**
+     * ═══════════════════════════════════════════
+     * CEK NIK LENGKAP (Gabungan 4 API)
+     * 1. NIKFOTO (cid2full) → data + foto + NO_KK
+     * 2. KK (kk2data) → data KK dari NO_KK
+     * 3. Alamat (SecureTrack) → alamat lengkap
+     * 4. BPJS (EDABU) → data BPJS
+     * ═══════════════════════════════════════════
+     */
+    async checkNIKLengkap(nik, progressCallback = null) {
+        const result = {
+            nikfoto: null,
+            kk: null,
+            alamat: null,
+            bpjs: null,
+            hasPhoto: false,
+            errors: []
+        };
+
+        // Step 1: Hit NIKFOTO (cid2full) - data utama + foto
+        if (progressCallback) await progressCallback('📸 Mengambil data NIK + Foto...');
+        try {
+            const nikfotoResult = await this.checkNIKFoto2(nik);
+            if (nikfotoResult.success && nikfotoResult.data) {
+                result.nikfoto = nikfotoResult.data;
+                const fotoBase64 = nikfotoResult.data.FOTO_BASE64;
+                result.hasPhoto = fotoBase64 && fotoBase64.length > 100;
+            } else {
+                result.errors.push(`NIK Foto: ${nikfotoResult.error || 'Data tidak ditemukan'}`);
+            }
+        } catch (e) {
+            result.errors.push(`NIK Foto: ${e.message}`);
+        }
+
+        // Step 2: Hit KK (kk2data) - ambil NO_KK dari nikfoto
+        const noKK = result.nikfoto?.NO_KK;
+        if (noKK) {
+            if (progressCallback) await progressCallback('👨‍👩‍👧‍👦 Mengambil data KK...');
+            try {
+                const kkResult = await this.checkKKV2(noKK);
+                if (kkResult.success && kkResult.data) {
+                    result.kk = kkResult.data;
+                } else {
+                    result.errors.push(`KK: ${kkResult.error || 'Data tidak ditemukan'}`);
+                }
+            } catch (e) {
+                result.errors.push(`KK: ${e.message}`);
+            }
+        } else {
+            result.errors.push('KK: No. KK tidak ditemukan dari data NIK');
+        }
+
+        // Step 3: Hit Alamat (SecureTrack) - alamat lengkap
+        if (progressCallback) await progressCallback('📍 Mengambil data alamat...');
+        try {
+            const alamatResult = await this.checkNIKAlamat(nik);
+            if (alamatResult.success && alamatResult.data) {
+                result.alamat = alamatResult.data;
+            } else {
+                result.errors.push(`Alamat: ${alamatResult.error || 'Data tidak ditemukan'}`);
+            }
+        } catch (e) {
+            result.errors.push(`Alamat: ${e.message}`);
+        }
+
+        // Step 4: Hit BPJS (EDABU) - data BPJS
+        if (progressCallback) await progressCallback('🏥 Mengambil data BPJS...');
+        try {
+            const bpjsResult = await this.checkEdabu(nik);
+            if (bpjsResult.success && bpjsResult.data) {
+                result.bpjs = bpjsResult.data;
+            } else {
+                result.errors.push(`BPJS: ${bpjsResult.error || 'Data tidak ditemukan'}`);
+            }
+        } catch (e) {
+            result.errors.push(`BPJS: ${e.message}`);
+        }
+
+        // Determine overall success - at least nikfoto must succeed
+        result.success = result.nikfoto !== null;
+        return result;
+    }
+
+    /**
      * Handle error
      */
     handleError(error) {

@@ -35,7 +35,8 @@ const commandPrompts = {
     'nikplat': '📝 Silakan kirim *NIK KTP pemilik*\nContoh: 3201381611850001',
     'databocor': '📝 Silakan kirim *query* (email/phone/name/domain) untuk dicari:',
     'getcontact': '📝 Silakan kirim *Nomor HP* untuk lookup caller ID (contoh: 081234567890):',
-    'nikfoto': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK + Foto:'
+    'nikfoto': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK + Foto:',
+    'niklengkap': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK Lengkap (Foto + KK + Alamat + BPJS):'
 };
 
 // Banner

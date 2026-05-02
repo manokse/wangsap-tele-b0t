@@ -660,7 +660,7 @@ const ownerCommands = {
     async setmt(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, ceknikv2, nama, nama2, kk, kkv2, ceknomor, ceknomorv2, edabu, edabumassal, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, nikfoto\nContoh: <code>/setmt edabumassal on</code>`,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/setmt &lt;fitur&gt; &lt;on/off&gt;</code>\nFitur: all, ceknik, ceknikv2, nama, nama2, kk, kkv2, ceknomor, ceknomorv2, edabu, edabumassal, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, nikfoto, niklengkap\nContoh: <code>/setmt edabumassal on</code>`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -677,7 +677,7 @@ const ownerCommands = {
             return;
         }
 
-        const validFeatures = ['all', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'kkv2', 'ceknomor', 'ceknomorv2', 'edabu', 'edabumassal', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'nikfoto'];
+        const validFeatures = ['all', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'kkv2', 'ceknomor', 'ceknomorv2', 'edabu', 'edabumassal', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'nikfoto', 'niklengkap'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -735,7 +735,7 @@ const ownerCommands = {
     async setcost(bot, msg, args) {
         if (args.length < 2) {
             await bot.sendMessage(msg.chat.id,
-                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nContoh: <code>/setcost edabumassal 3</code>\n<i>edabumassal = biaya per NIK</i>\n\nFitur: ceknomor, ceknomorv2, ceknik, ceknikv2, nama, nama2, kk, kkv2, edabu, edabumassal, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, getdata, nikfoto`,
+                `🪙 <b>Set Biaya Fitur</b>\n\nFormat: <code>/setcost &lt;fitur&gt; &lt;cost&gt;</code>\nContoh: <code>/setcost edabumassal 3</code>\n<i>edabumassal = biaya per NIK</i>\n\nFitur: ceknomor, ceknomorv2, ceknik, ceknikv2, nama, nama2, kk, kkv2, edabu, edabumassal, bpjstk, nopol, noka, nosin, nikplat, databocor, getcontact, getdata, nikfoto, niklengkap`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -744,7 +744,7 @@ const ownerCommands = {
         const feature = args[0].toLowerCase();
         const cost = parseFloat(args[1]);
         
-        const validFeatures = ['ceknomor', 'ceknomorv2', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'kkv2', 'edabu', 'edabumassal', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'nikfoto'];
+        const validFeatures = ['ceknomor', 'ceknomorv2', 'ceknik', 'ceknikv2', 'nama', 'nama2', 'kk', 'kkv2', 'edabu', 'edabumassal', 'bpjstk', 'nopol', 'noka', 'nosin', 'nikplat', 'databocor', 'getcontact', 'getdata', 'nikfoto', 'niklengkap'];
         if (!validFeatures.includes(feature)) {
             await bot.sendMessage(msg.chat.id,
                 `❌ Fitur tidak valid. Pilih: ${validFeatures.join(', ')}`,
@@ -797,7 +797,8 @@ const ownerCommands = {
             'databocor': 'databocor_cost',
             'getcontact': 'getcontact_cost',
             'getdata': 'getdata_cost',
-            'nikfoto': 'nikfoto_cost'
+            'nikfoto': 'nikfoto_cost',
+            'niklengkap': 'niklengkap_cost'
         };
         
         const settingKey = featureKeyMap[feature] || `${feature}_cost`;
@@ -875,6 +876,7 @@ const ownerCommands = {
         text += `kk: ${gc('kk_cost', config.kkCost)}t\n`;
         text += `ceknomor: ${gc('ceknomor_cost', config.ceknomorCost)}t\n`;
         text += `nikfoto: ${gc('nikfoto_cost', config.nikfotoCost)}t\n`;
+        text += `niklengkap: ${gc('niklengkap_cost', config.nikLengkapCost)}t\n`;
 
         text += '\n<b>━━━ 🪙 BIAYA V2 ━━━</b>\n';
         text += `ceknikv2: ${gc('checkv2_cost', config.checkV2Cost)}t\n`;
@@ -897,7 +899,7 @@ const ownerCommands = {
         text += `getdata: ${getdataCost}t\n`;
         
         text += '\n<b>━━━ 🛠️ MAINTENANCE ━━━</b>\n';
-        const allFeatures = ['ceknik','ceknikv2','nama','nama2','kk','kkv2','ceknomor','ceknomorv2','edabu','edabumassal','bpjstk','nopol','noka','nosin','nikplat','databocor','getcontact','nikfoto'];
+        const allFeatures = ['ceknik','ceknikv2','nama','nama2','kk','kkv2','ceknomor','ceknomorv2','edabu','edabumassal','bpjstk','nopol','noka','nosin','nikplat','databocor','getcontact','nikfoto','niklengkap'];
         allFeatures.forEach(f => { text += `${f}: ${mt(f)}\n`; });
 
         await bot.sendMessage(msg.chat.id, text, { 

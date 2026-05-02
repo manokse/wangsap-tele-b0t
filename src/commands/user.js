@@ -5,7 +5,7 @@ const paymentService = require('../services/payment');
 const asexVehicleService = require('../services/asexVehicle');
 const { isValidNIK, isValidKK, addWatermark } = require('../utils/helper');
 const formatter = require('../utils/formatter');
-const { ceknomorResultMessage, ceknomorv2ResultMessage } = require('../utils/formatter');
+const { ceknomorResultMessage, ceknomorv2ResultMessage, nikLengkapResultMessage } = require('../utils/formatter');
 const fs = require('fs');
 const path = require('path');
 const axios = require('axios');
@@ -162,7 +162,8 @@ Pilih fitur yang ingin digunakan:
                 { text: `📱 CekNomor (${ceknomorCost}t)`, callback_data: 'menu_ceknomor' }
             ],
             [
-                { text: `📸 NikFoto (${parseInt(settings.nikfoto_cost) || config.nikfotoCost}t)`, callback_data: 'menu_nikfoto' }
+                { text: `📸 NikFoto (${parseInt(settings.nikfoto_cost) || config.nikfotoCost}t)`, callback_data: 'menu_nikfoto' },
+                { text: `📋 NikLengkap (${parseInt(settings.niklengkap_cost) || config.nikLengkapCost}t)`, callback_data: 'menu_niklengkap' }
             ],
             // ── V2 Features ──
             [
@@ -1805,6 +1806,169 @@ Pilih fitur yang ingin digunakan:
                 message_id: processingMsg.message_id,
                 parse_mode: 'HTML'
             });
+        }
+    },
+
+    /**
+     * Command: /niklengkap <NIK>
+     * Cek NIK Lengkap: Foto + Data NIK + KK + Alamat + BPJS
+     */
+    async niklengkap(bot, msg, args) {
+        const userId = msg.from.id;
+        const firstName = msg.from.first_name || 'User';
+        const username = msg.from.username || null;
+
+        if (args.length === 0) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/niklengkap &lt;NIK&gt;</code>\nContoh: <code>/niklengkap 3201160109990005</code>\n\n📋 Fitur ini menampilkan:\n• 📸 Foto KTP\n• 📋 Data Identitas\n• 📍 Alamat Lengkap\n• 👨‍👩‍👧‍👦 Data Kartu Keluarga\n• 🏥 Data BPJS Kesehatan`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const nik = args[0].replace(/\D/g, '');
+
+        if (!isValidNIK(nik)) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>NIK Tidak Valid</b>\n\nNIK harus <b>16 digit angka</b>`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const user = db.getOrCreateUser(userId, username, firstName);
+        const settings = db.getAllSettings();
+
+        if (settings.mt_niklengkap === 'true') {
+            await bot.sendMessage(msg.chat.id,
+                `⚠️ <b>MAINTENANCE</b>\n\nFitur <b>CEK NIK LENGKAP</b> sedang dalam perbaikan.`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const nikLengkapCost = parseInt(settings.niklengkap_cost) || config.nikLengkapCost;
+
+        if (user.token_balance < nikLengkapCost) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Saldo Tidak Cukup</b>\n\n🪙 Saldo: <b>${user.token_balance} token</b>\n💰 Biaya: <b>${nikLengkapCost} token</b>\n\nKetik <code>/deposit</code> untuk top up`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const requestId = db.createApiRequest(userId, 'niklengkap', nik, 'niklengkap', nikLengkapCost);
+
+        const processingMsg = await bot.sendMessage(msg.chat.id,
+            `⏳ <b>Sedang Proses...</b>\n\n📋 Cek NIK Lengkap: <b>${nik}</b>\n🆔 ID: <code>${requestId}</code>\n\n<i>Proses ini membutuhkan waktu karena mengambil data dari 4 sumber berbeda...</i>`,
+            { parse_mode: 'HTML' }
+        );
+
+        db.deductTokens(userId, nikLengkapCost);
+
+        // Progress callback - update processing message
+        const progressCallback = async (statusText) => {
+            try {
+                await bot.editMessageText(
+                    `⏳ <b>Sedang Proses...</b>\n\n📋 Cek NIK Lengkap: <b>${nik}</b>\n🆔 ID: <code>${requestId}</code>\n\n${formatter.escapeHtml(statusText)}`,
+                    { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
+                );
+            } catch (e) { /* ignore edit errors */ }
+        };
+
+        let result = await apiService.checkNIKLengkap(nik, progressCallback);
+
+        const updatedUser = db.getUser(userId);
+        const remainingToken = updatedUser?.token_balance || 0;
+
+        if (!result.success) {
+            // Full refund if nikfoto (primary data) fails
+            db.refundTokens(userId, nikLengkapCost);
+            db.updateApiRequest(requestId, 'failed', null, null, result.errors.join('; '));
+            db.createTransaction(userId, 'check', nikLengkapCost, `Cek NIK Lengkap gagal (refund)`, nik, 'failed');
+
+            await bot.editMessageText(
+                `❌ <b>Gagal</b>\n\nData utama NIK tidak ditemukan.\n\n${result.errors.map(e => `• ${formatter.escapeHtml(e)}`).join('\n')}\n\n🪙 Token dikembalikan: <b>${nikLengkapCost} token</b>\n🆔 ID: <code>${requestId}</code>`,
+                { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
+            );
+            return;
+        }
+
+        // Success - save data (without FOTO_BASE64 to save DB space)
+        db.updateApiRequest(requestId, 'success', 'Data lengkap ditemukan', null, null, {
+            nikfoto: result.nikfoto ? { ...result.nikfoto, FOTO_BASE64: undefined } : null,
+            kk: result.kk,
+            alamat: result.alamat,
+            bpjs: result.bpjs,
+            hasPhoto: result.hasPhoto,
+            errors: result.errors
+        });
+        db.createTransaction(userId, 'check', nikLengkapCost, `Cek NIK Lengkap berhasil`, nik, 'success');
+
+        const updatedUser2 = db.getUser(userId);
+        const finalRemainingToken = updatedUser2?.token_balance || 0;
+        const textResult = nikLengkapResultMessage(result, nikLengkapCost, requestId, finalRemainingToken);
+
+        // Helper: split long message for Telegram 4096 char limit
+        const splitMessage = (text, maxLen = 4000) => {
+            if (text.length <= maxLen) return [text];
+            const parts = [];
+            let remaining = text;
+            while (remaining.length > 0) {
+                if (remaining.length <= maxLen) {
+                    parts.push(remaining);
+                    break;
+                }
+                // Find best split point (double newline > single newline > space)
+                let splitAt = remaining.lastIndexOf('\n\n', maxLen);
+                if (splitAt < maxLen * 0.3) splitAt = remaining.lastIndexOf('\n', maxLen);
+                if (splitAt < maxLen * 0.3) splitAt = maxLen;
+                parts.push(remaining.substring(0, splitAt));
+                remaining = remaining.substring(splitAt).trimStart();
+            }
+            return parts;
+        };
+
+        // Helper: send text with auto-split
+        const sendLongMessage = async (chatId, text, replyToId) => {
+            const parts = splitMessage(text);
+            for (let i = 0; i < parts.length; i++) {
+                await bot.sendMessage(chatId, parts[i], {
+                    parse_mode: 'HTML',
+                    reply_to_message_id: i === 0 ? replyToId : undefined
+                });
+                if (i < parts.length - 1) await new Promise(r => setTimeout(r, 300));
+            }
+        };
+
+        // Check if photo available - send photo first, then text
+        if (result.hasPhoto && result.nikfoto?.FOTO_BASE64) {
+            try {
+                const rawBuffer = Buffer.from(result.nikfoto.FOTO_BASE64, 'base64');
+                const imageBuffer = await addWatermark(rawBuffer, userId);
+                // Delete processing message
+                await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => {});
+                // Short caption for photo
+                const _d = result.nikfoto;
+                const _ttl = (_d.TANGGAL_LAHIR || '-').split(' ')[0];
+                const shortCaption = `📸 <b>NIK LENGKAP - FOTO</b>\n👤 <b>${formatter.escapeHtml(_d.NAMA_LENGKAP || '-')}</b>\n🆔 <code>${_d.NIK || nik}</code>\n📅 ${formatter.escapeHtml(_d.TEMPAT_LAHIR || '-')}, ${formatter.escapeHtml(_ttl)}`;
+                await bot.sendPhoto(msg.chat.id, imageBuffer, {
+                    caption: shortCaption,
+                    parse_mode: 'HTML',
+                    reply_to_message_id: msg.message_id
+                });
+                // Send full detail as follow-up (auto-split if too long)
+                await sendLongMessage(msg.chat.id, textResult, msg.message_id);
+            } catch (imgErr) {
+                console.error('Error sending photo:', imgErr.message);
+                // Fallback: send text only (auto-split)
+                await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => {});
+                await sendLongMessage(msg.chat.id, textResult + '\n\n⚠️ <i>Gagal mengirim foto</i>', msg.message_id);
+            }
+        } else {
+            // No photo - just send text (auto-split)
+            await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => {});
+            await sendLongMessage(msg.chat.id, textResult + '\n\n⚠️ <i>Foto tidak ditemukan</i>', msg.message_id);
         }
     },
 
