@@ -547,28 +547,22 @@ ${EMOJI.user} <b>DATA PESERTA</b>
 ${LINE.thin}
 👤 Nama: <b>${escapeHtml(d.namaPeserta || '-')}</b>
 🆔 NIK KTP: <code>${d.nikKtp || '-'}</code>
-💳 No Kartu BPJS: <code>${d.kpj || '-'}</code>
-🔢 Kode TK: ${escapeHtml(d.kodeTk || '-')}
+💳 No KPJ: <code>${d.kpj || '-'}</code>
 📅 Tanggal Lahir: ${escapeHtml(d.tglLahir || '-')}
-📄 Jenis Identitas: ${escapeHtml(d.jenisIdentitas || '-')}
-🌍 Kewarganegaraan: ${escapeHtml(d.kewarganegaraan || '-')}
-💼 Jenis Pekerjaan: ${escapeHtml(d.jenisPekerjaan || '-')}
+� Jenis Pekerjaan: ${escapeHtml(d.jenisPekerjaan || '-')}
+� Segmen: ${escapeHtml(d.segmen || '-')}
 
 ${LINE.sep}
 🏢 <b>DATA PERUSAHAAN</b>
 ${LINE.thin}
 Nama: <b>${escapeHtml(d.namaPerusahaan || '-')}</b>
-Kode Perusahaan: ${escapeHtml(d.kodePerusahaan || '-')}
-NPP: <code>${d.npp || '-'}</code>
-Kode Divisi: ${escapeHtml(d.kodeDivisi || '-')}
-Kode Segmen: ${escapeHtml(d.kodeSegmen || '-')}
-Kode Kantor: ${escapeHtml(d.kodeKantor || '-')}
 
 ${LINE.sep}
 📋 <b>STATUS KEPESERTAAN</b>
 ${LINE.thin}
 🟢 Tgl Aktif: ${escapeHtml(d.tglAktif || '-')}
 🔴 Tgl Non-Aktif: ${escapeHtml(d.tglNa || '-')}
+✅ Status Layak: ${escapeHtml(d.statusLayak || '-')} (${escapeHtml(d.ketLayak || '-')})
 `;
 
         if (d.alamatDomisili) {
@@ -580,14 +574,12 @@ ${escapeHtml(d.alamatDomisili)}
 `;
         }
 
-        if (d.namaPicPerusahaan || d.kontakPicPerusahaan || d.emailPicPerusahaan) {
+        if (d.bpjsKes) {
             msg += `
 ${LINE.sep}
-📞 <b>PIC PERUSAHAAN</b>
+🏥 <b>BPJS KESEHATAN</b>
 ${LINE.thin}
-Nama: ${escapeHtml(d.namaPicPerusahaan || '-')}
-Kontak: ${escapeHtml(d.kontakPicPerusahaan || '-')}
-Email: ${escapeHtml(d.emailPicPerusahaan || '-')}
+${escapeHtml(d.bpjsKes)}
 `;
         }
     });
@@ -1563,17 +1555,17 @@ ${LINE.double}\n`;
         msg += `\n❌ <i>Data NIK tidak ditemukan</i>`;
     }
 
-    // ═══ SECTION 2: DATA ALAMAT (dari SecureTrack) ═══
+    // ═══ SECTION 2: DATA ALAMAT (dari NIK API) ═══
     if (alamat) {
         msg += `
 
 <b>━━━ 📍 DATA ALAMAT ━━━</b>
 🏠 Alamat: ${escapeHtml(alamat.alamat || '-')}
-RT/RW: ${alamat.rt ?? '-'}/${alamat.rw ?? '-'}
-🏘️ Kel: ${escapeHtml(alamat.kel_nama || alamat.kel || '-')}
-🏙️ Kec: ${escapeHtml(alamat.kec_nama || alamat.kec || '-')}
-🌆 Kab: ${escapeHtml(alamat.kab_nama || alamat.kab || '-')}
-🗺️ Prov: ${escapeHtml(alamat.prov_nama || alamat.prov || '-')}
+RT/RW: ${alamat.no_rt ?? '-'}/${alamat.no_rw ?? '-'}
+🏘️ Kel: ${escapeHtml(alamat.kelurahan || '-')}
+🏙️ Kec: ${escapeHtml(alamat.kecamatan || '-')}
+🌆 Kab: ${escapeHtml(alamat.kabupaten || '-')}
+🗺️ Prov: ${escapeHtml(alamat.provinsi || '-')}
 
 🗺️ <b>Alamat Lengkap:</b>
 ${escapeHtml(alamat.alamat_lengkap || '-')}`;
@@ -1781,7 +1773,7 @@ ${LINE.double}
 🪪 No. KK: <code>${nkk || '-'}</code>
 👥 Anggota: <b>${jumlah} orang</b>`;
 
-    // Alamat KK (from SecureTrack)
+    // Alamat KK (from NIK API)
     if (alamat) {
         msg += `
 
@@ -1844,28 +1836,28 @@ ${LINE.thin}
 }
 
 /**
- * Format hasil NIK to Alamat (SecureTrack API)
+ * Format hasil NIK to Alamat (NIK API)
  */
 function nikAlamatResultMessage(data, nik, tokenUsed, requestId = '', remainingToken = 0) {
-    const jk = data.gender || '-';
-    const ttl = data.tgl_lahir || '-';
+    const jk = data.jenis_kelamin || '-';
+    const ttl = data.tanggal_lahir || '-';
 
     let msg = `📍 <b>HASIL NIK TO ALAMAT</b>
 ${LINE.double}
 
 <b>━━━ 📋 IDENTITAS ━━━</b>
-🆔 NIK: <code>${data.nomor_induk || nik}</code>
+🆔 NIK: <code>${data.nik || nik}</code>
 👤 Nama: <b>${escapeHtml(data.nama || '-')}</b>
 📅 Tgl Lahir: ${escapeHtml(ttl)}
 ⚧️ JK: ${escapeHtml(jk)}
 
 <b>━━━ 🏠 ALAMAT LENGKAP ━━━</b>
 ${escapeHtml(data.alamat || '-')}
-RT/RW: ${data.rt || '-'}/${data.rw || '-'}
-🏘️ Kel: ${escapeHtml(data.kel_nama || data.kel || '-')}
-🏙️ Kec: ${escapeHtml(data.kec_nama || data.kec || '-')}
-🌆 Kab: ${escapeHtml(data.kab_nama || data.kab || '-')}
-🗺️ Prov: ${escapeHtml(data.prov_nama || data.prov || '-')}
+RT/RW: ${data.no_rt ?? '-'}/${data.no_rw ?? '-'}
+🏘️ Kel: ${escapeHtml(data.kelurahan || '-')}
+🏙️ Kec: ${escapeHtml(data.kecamatan || '-')}
+🌆 Kab: ${escapeHtml(data.kabupaten || '-')}
+🗺️ Prov: ${escapeHtml(data.provinsi || '-')}
 
 <b>━━━ 🗺️ ALAMAT FULL ━━━</b>
 ${escapeHtml(data.alamat_lengkap || '-')}

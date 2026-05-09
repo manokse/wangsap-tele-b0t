@@ -537,7 +537,7 @@ Pilih fitur yang ingin digunakan:
         db.updateApiRequest(requestId, 'success', `${successCount}/${result.total} berhasil`, null, null, result);
         db.createTransaction(userId, 'check', actualCost, `EDABU Massal: ${successCount}/${result.total} OK`, nikList.join(','), 'success');
 
-        // Fetch alamat per NIK via SecureTrack
+        // Fetch alamat per NIK via NIK API
         await bot.editMessageText(
             buildProgressTG({ title: 'Mengambil Data Alamat...', frame: '📍', processed: nikList.length, total: nikList.length, success: successCount, failed: failedCount, costCount: actualCost, elapsedMs: Date.now() - startedAt }),
             { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
@@ -1446,7 +1446,7 @@ Pilih fitur yang ingin digunakan:
 
     /**
      * Command: /kkv2 <NO_KK>
-     * Cek KK V2 (ASEX API) + alamat via SecureTrack
+     * Cek KK V2 (ASEX API) + alamat via NIK API
      */
     async kkv2(bot, msg, args) {
         const userId = msg.from.id;
@@ -1504,7 +1504,7 @@ Pilih fitur yang ingin digunakan:
             return;
         }
 
-        // Fetch alamat via SecureTrack
+        // Fetch alamat via NIK API
         if (!result.fromCache) {
             const allNiks = [];
             if (result.data.KEPALA_KELUARGA?.NIK) allNiks.push(String(result.data.KEPALA_KELUARGA.NIK));

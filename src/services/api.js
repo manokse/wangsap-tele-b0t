@@ -279,73 +279,97 @@ class APIService {
     }
 
     /**
-     * CEK NIK V2 (SecureTrack API)
+     * CEK NIK V2 (NIK API - 151.240.0.241)
      */
     async checkNIKV2(nik) {
-        try {
-            const cleanNik = String(nik || '').replace(/\D/g, '');
-            const url = `https://securetrack.id/api/ceknik.php?nik=${encodeURIComponent(cleanNik)}`;
+        const cleanNik = String(nik || '').replace(/\D/g, '');
+        const url = `https://151.240.0.241/api_nik.php?nik=${encodeURIComponent(cleanNik)}`;
 
-            console.log(`🔍 [SecureTrack] Checking NIK V2: ${cleanNik}`);
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                console.log(`🔍 [NIK API] Checking NIK V2: ${cleanNik} (attempt ${attempt}/2)`);
 
-            const response = await axios.get(url, {
-                timeout: 60000,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                const response = await axios.get(url, {
+                    timeout: 30000,
+                    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+
+                const payload = response.data;
+                if (!payload || payload.error === true || !payload.data) {
+                    if (attempt < 2) {
+                        console.log(`[NIK API] No data, retrying...`);
+                        await this.delay(1500);
+                        continue;
+                    }
+                    return {
+                        success: false,
+                        error: payload?.message || 'Data tidak ditemukan',
+                        refund: true
+                    };
                 }
-            });
 
-            const payload = response.data;
-            if (!payload || payload.success !== true || !payload.data) {
-                return {
-                    success: false,
-                    error: payload?.message || 'Data tidak ditemukan',
-                    refund: true
+                const d = payload.data;
+                const kelurahan = d.kelurahan || d.kelurahan_id_text || '-';
+                const kecamatan = d.kecamatan || d.kecamatan_id_text || '-';
+                const kabupaten = d.kabupaten || d.kabupaten_id_text || '-';
+                const provinsi = d.provinsi || d.provinsi_id_text || '-';
+
+                const fullAddress = [
+                    d.alamat,
+                    kelurahan !== '-' ? `Kel. ${kelurahan}` : null,
+                    kecamatan !== '-' ? `Kec. ${kecamatan}` : null,
+                    kabupaten !== '-' ? kabupaten : null,
+                    provinsi !== '-' ? provinsi : null
+                ].filter(p => p && p.trim() !== '').join(', ') || '-';
+
+                const normalized = {
+                    nik: String(d.nik || cleanNik),
+                    NIK: String(d.nik || cleanNik),
+                    KK: '-',
+                    nama_lengkap: d.nama_lengkap || '-',
+                    NAMA: d.nama_lengkap || '-',
+                    tanggal_lahir: d.tanggal_lahir || '-',
+                    jenis_kelamin: d.jenis_kelamin || '-',
+                    JENIS_KELAMIN: d.jenis_kelamin || '-',
+                    alamat: d.alamat || '-',
+                    ALAMAT: d.alamat || '-',
+                    no_rt: d.no_rt ?? '-',
+                    no_rw: d.no_rw ?? '-',
+                    kelurahan,
+                    kecamatan,
+                    kabupaten,
+                    provinsi,
+                    agama: '-',
+                    status_kawin: '-',
+                    hubungan: '-',
+                    gol_darah: '-',
+                    pekerjaan: '-',
+                    pendidikan: '-',
+                    nama_ayah: '-',
+                    nama_ibu: '-',
+                    full_address: fullAddress
                 };
+
+                console.log(`✅ [NIK API] NIK V2 found: ${normalized.nama_lengkap}`);
+
+                return {
+                    success: true,
+                    data: normalized,
+                    refund: false
+                };
+
+            } catch (error) {
+                if (attempt < 2) {
+                    console.log(`[NIK API] Error, retrying: ${error.message}`);
+                    await this.delay(1500);
+                    continue;
+                }
+                console.error('NIK API V2 Error:', error.message);
+                return this.handleError(error);
             }
-
-            const d = payload.data;
-            const normalized = {
-                nik: d.nomor_induk || cleanNik,
-                NIK: d.nomor_induk || cleanNik,
-                KK: '-',
-                nama_lengkap: d.nama_lengkap_user || '-',
-                NAMA: d.nama_lengkap_user || '-',
-                tanggal_lahir: d.tgl_lahir || '-',
-                jenis_kelamin: d.gender || '-',
-                JENIS_KELAMIN: d.gender || '-',
-                alamat: d.alamat || '-',
-                ALAMAT: d.alamat || '-',
-                no_rt: d.rt ?? '-',
-                no_rw: d.rw ?? '-',
-                kelurahan: d.kel_nama || d.kel || '-',
-                kecamatan: d.kec_nama || d.kec || '-',
-                kabupaten: d.kab_nama || d.kab || '-',
-                provinsi: d.prov_nama || d.prov || '-',
-                agama: '-',
-                status_kawin: '-',
-                hubungan: '-',
-                gol_darah: '-',
-                pekerjaan: '-',
-                pendidikan: '-',
-                nama_ayah: '-',
-                nama_ibu: '-',
-                full_address: d.alamat_lengkap || '-',
-                meta_cached: payload.meta?.cached,
-                meta_cache_age: payload.meta?.cache_age
-            };
-
-            console.log(`✅ [SecureTrack] NIK V2 found: ${normalized.nama_lengkap}`);
-
-            return {
-                success: true,
-                data: normalized,
-                refund: false
-            };
-
-        } catch (error) {
-            console.error('SecureTrack NIK V2 API Error:', error.message);
-            return this.handleError(error);
         }
     }
 
@@ -727,54 +751,62 @@ class APIService {
     /**
      * FETCH NIK ADDRESS (untuk enrichment data EDABU)
      * Mengambil alamat lengkap berdasarkan NIK
+     * API: https://151.240.0.241/api_nik.php
+     * Includes retry for reliability
      */
     async fetchNIKAddress(nik) {
-        try {
-            const cleanNik = String(nik || '').replace(/\D/g, '');
-            if (!cleanNik) return null;
+        const cleanNik = String(nik || '').replace(/\D/g, '');
+        if (!cleanNik) return null;
 
-            const url = `https://securetrack.id/api/ceknik.php?nik=${encodeURIComponent(cleanNik)}`;
-            
-            const response = await axios.get(url, {
-                timeout: 10000, // timeout lebih pendek untuk enrichment
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+        const url = `https://151.240.0.241/api_nik.php?nik=${encodeURIComponent(cleanNik)}`;
+
+        for (let attempt = 1; attempt <= 2; attempt++) {
+            try {
+                const response = await axios.get(url, {
+                    timeout: 15000,
+                    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+
+                const payload = response.data;
+
+                if (!payload || payload.error === true || !payload.data) {
+                    if (attempt < 2) { await this.delay(1000); continue; }
+                    return null;
                 }
-            });
 
-            const payload = response.data;
+                const d = payload.data;
+                const kelurahan = d.kelurahan || d.kelurahan_id_text || '-';
+                const kecamatan = d.kecamatan || d.kecamatan_id_text || '-';
+                const kabupaten = d.kabupaten || d.kabupaten_id_text || '-';
+                const provinsi = d.provinsi || d.provinsi_id_text || '-';
 
-            if (!payload || payload.success !== true || !payload.data) {
+                const alamatLengkap = [
+                    d.alamat,
+                    kelurahan !== '-' ? `Kel. ${kelurahan}` : null,
+                    kecamatan !== '-' ? `Kec. ${kecamatan}` : null,
+                    kabupaten !== '-' ? kabupaten : null,
+                    provinsi !== '-' ? provinsi : null
+                ].filter(p => p && p.trim() !== '').join(', ') || '-';
+
+                return {
+                    alamat: d.alamat || '-',
+                    kelurahan,
+                    kecamatan,
+                    kabupaten,
+                    provinsi,
+                    alamat_lengkap: alamatLengkap
+                };
+
+            } catch (error) {
+                if (attempt < 2) { await this.delay(1000); continue; }
+                console.error('Fetch NIK Address Error:', error.message);
                 return null;
             }
-
-            const d = payload.data;
-            const kelurahan = d.kel || d.kel_nama || d.kelurahan || d.kelurahan_id_text || '-';
-            const kecamatan = d.kec || d.kec_nama || d.kecamatan || d.kecamatan_id_text || '-';
-            const kabupaten = d.kab || d.kab_nama || d.kabupaten || d.kabupaten_id_text || '-';
-            const provinsi = d.prov || d.prov_nama || d.provinsi || d.provinsi_id_text || '-';
-
-            const alamatLengkap = d.alamat_lengkap || d.full_address || [
-                d.alamat,
-                kelurahan !== '-' ? `Kel. ${kelurahan}` : null,
-                kecamatan !== '-' ? `Kec. ${kecamatan}` : null,
-                kabupaten !== '-' ? kabupaten : null,
-                provinsi !== '-' ? provinsi : null
-            ].filter(p => p && p.trim() !== '').join(', ') || '-';
-
-            return {
-                alamat: d.alamat || '-',
-                kelurahan,
-                kecamatan,
-                kabupaten,
-                provinsi,
-                alamat_lengkap: alamatLengkap
-            };
-
-        } catch (error) {
-            console.error('Fetch NIK Address Error:', error.message);
-            return null;
         }
+        return null;
     }
 
     /**
@@ -803,7 +835,7 @@ class APIService {
      * CEK NIK LENGKAP (Gabungan 4 API)
      * 1. NIKFOTO (cid2full) → data + foto + NO_KK
      * 2. KK (kk2data) → data KK dari NO_KK
-     * 3. Alamat (SecureTrack) → alamat lengkap
+     * 3. Alamat (NIK API) → alamat lengkap
      * 4. BPJS (EDABU) → data BPJS
      * ═══════════════════════════════════════════
      */
@@ -850,7 +882,7 @@ class APIService {
             result.errors.push('KK: No. KK tidak ditemukan dari data NIK');
         }
 
-        // Step 3: Hit Alamat (SecureTrack) - alamat lengkap
+        // Step 3: Hit Alamat (NIK API) - alamat lengkap
         if (progressCallback) await progressCallback('📍 Mengambil data alamat...');
         try {
             const alamatResult = await this.checkNIKAlamat(nik);
@@ -1193,45 +1225,85 @@ class APIService {
 
     /**
      * ═══════════════════════════════════════════
-     * NIK TO ALAMAT (SecureTrack API)
+     * NIK TO ALAMAT (NIK API - 151.240.0.241)
      * /nikalamat <NIK>
+     * Includes retry for reliability
      * ═══════════════════════════════════════════
      */
-    async checkNIKAlamat(nik) {
-        try {
-            const cleanNik = String(nik || '').replace(/\D/g, '');
-            const url = `https://securetrack.id/api/ceknik.php?nik=${encodeURIComponent(cleanNik)}`;
+    async checkNIKAlamat(nik, maxRetries = 2) {
+        const cleanNik = String(nik || '').replace(/\D/g, '');
+        const url = `https://151.240.0.241/api_nik.php?nik=${encodeURIComponent(cleanNik)}`;
 
-            console.log(`🔍 [SecureTrack Alamat] Checking NIK: ${cleanNik}`);
+        for (let attempt = 1; attempt <= maxRetries; attempt++) {
+            try {
+                console.log(`🔍 [NIK API Alamat] Checking NIK: ${cleanNik} (attempt ${attempt}/${maxRetries})`);
 
-            const response = await axios.get(url, {
-                timeout: 60000,
-                headers: {
-                    'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                const response = await axios.get(url, {
+                    timeout: 30000,
+                    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
+                    headers: {
+                        'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
+                    }
+                });
+
+                const payload = response.data;
+                
+                if (!payload || payload.error === true || !payload.data) {
+                    if (attempt < maxRetries) {
+                        console.log(`[NIK API Alamat] No data, retrying...`);
+                        await this.delay(1500);
+                        continue;
+                    }
+                    return {
+                        success: false,
+                        error: payload?.message || 'Data tidak ditemukan',
+                        refund: true
+                    };
                 }
-            });
 
-            const payload = response.data;
-            
-            if (!payload || payload.success !== true || !payload.data) {
+                const d = payload.data;
+                console.log(`✅ [NIK API Alamat] NIK found: ${d.nama_lengkap}`);
+
+                const kelurahan = d.kelurahan || d.kelurahan_id_text || '-';
+                const kecamatan = d.kecamatan || d.kecamatan_id_text || '-';
+                const kabupaten = d.kabupaten || d.kabupaten_id_text || '-';
+                const provinsi = d.provinsi || d.provinsi_id_text || '-';
+
+                const alamatLengkap = [
+                    d.alamat,
+                    kelurahan !== '-' ? `Kel. ${kelurahan}` : null,
+                    kecamatan !== '-' ? `Kec. ${kecamatan}` : null,
+                    kabupaten !== '-' ? kabupaten : null,
+                    provinsi !== '-' ? provinsi : null
+                ].filter(p => p && p.trim() !== '').join(', ') || '-';
+
                 return {
-                    success: false,
-                    error: payload?.message || 'Data tidak ditemukan',
-                    refund: true
+                    success: true,
+                    data: {
+                        nik: String(d.nik || cleanNik),
+                        nama: d.nama_lengkap || '-',
+                        tanggal_lahir: d.tanggal_lahir || '-',
+                        jenis_kelamin: d.jenis_kelamin || '-',
+                        alamat: d.alamat || '-',
+                        no_rt: d.no_rt ?? '-',
+                        no_rw: d.no_rw ?? '-',
+                        kelurahan,
+                        kecamatan,
+                        kabupaten,
+                        provinsi,
+                        alamat_lengkap: alamatLengkap
+                    },
+                    refund: false
                 };
+
+            } catch (error) {
+                console.error(`NIK API Alamat Error (attempt ${attempt}):`, error.message);
+                if (attempt < maxRetries) {
+                    await this.delay(1500);
+                    continue;
+                }
+                return this.handleError(error);
             }
-
-            console.log(`✅ [SecureTrack Alamat] NIK found: ${payload.data.nama}`);
-
-            return {
-                success: true,
-                data: payload.data,
-                refund: false
-            };
-
-        } catch (error) {
-            console.error('SecureTrack Alamat API Error:', error.message);
-            return this.handleError(error);
         }
     }
 }
