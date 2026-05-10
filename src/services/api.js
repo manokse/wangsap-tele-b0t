@@ -882,14 +882,44 @@ class APIService {
             result.errors.push('KK: No. KK tidak ditemukan dari data NIK');
         }
 
-        // Step 3: Hit Alamat (NIK API) - alamat lengkap
+        // Step 3: Hit Alamat (NIK API) - alamat lengkap, fallback ke nikfoto
         if (progressCallback) await progressCallback('📍 Mengambil data alamat...');
         try {
             const alamatResult = await this.checkNIKAlamat(nik);
             if (alamatResult.success && alamatResult.data) {
                 result.alamat = alamatResult.data;
             } else {
-                result.errors.push(`Alamat: ${alamatResult.error || 'Data tidak ditemukan'}`);
+                // Fallback: gunakan data alamat dari nikfoto (cid2full) jika tersedia
+                if (result.nikfoto && result.nikfoto.ALAMAT) {
+                    const nf = result.nikfoto;
+                    const kel = nf.KELURAHAN || '-';
+                    const kec = nf.KECAMATAN || '-';
+                    const kab = nf.KOTA || '-';
+                    const prov = nf.PROVINSI || '-';
+                    const alamatLengkap = [
+                        nf.ALAMAT,
+                        kel !== '-' ? `Kel. ${kel}` : null,
+                        kec !== '-' ? `Kec. ${kec}` : null,
+                        kab !== '-' ? kab : null,
+                        prov !== '-' ? prov : null
+                    ].filter(p => p && p.trim() !== '').join(', ') || '-';
+                    result.alamat = {
+                        nik: String(nik),
+                        nama: nf.NAMA_LENGKAP || '-',
+                        tanggal_lahir: nf.TANGGAL_LAHIR || '-',
+                        jenis_kelamin: nf.JENIS_KELAMIN || '-',
+                        alamat: nf.ALAMAT || '-',
+                        no_rt: nf.RT ?? '-',
+                        no_rw: nf.RW ?? '-',
+                        kelurahan: kel,
+                        kecamatan: kec,
+                        kabupaten: kab,
+                        provinsi: prov,
+                        alamat_lengkap: alamatLengkap
+                    };
+                } else {
+                    result.errors.push(`Alamat: ${alamatResult.error || 'Data tidak ditemukan'}`);
+                }
             }
         } catch (e) {
             result.errors.push(`Alamat: ${e.message}`);
@@ -1247,8 +1277,10 @@ class APIService {
                 });
 
                 const payload = response.data;
-                
-                if (!payload || payload.error === true || !payload.data) {
+
+                const isValid = payload && typeof payload === 'object' && payload.error !== true && payload.data && typeof payload.data === 'object';
+                if (!isValid) {
+                    console.log(`[NIK API Alamat] Invalid response (attempt ${attempt}):`, typeof payload === 'string' ? payload.substring(0, 200) : JSON.stringify(payload)?.substring(0, 200));
                     if (attempt < maxRetries) {
                         console.log(`[NIK API Alamat] No data, retrying...`);
                         await this.delay(1500);
