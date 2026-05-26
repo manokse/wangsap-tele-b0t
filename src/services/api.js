@@ -279,11 +279,11 @@ class APIService {
     }
 
     /**
-     * CEK NIK V2 (NIK API - 151.240.0.241)
+     * CEK NIK V2 (NIK API - securetrack.id)
      */
     async checkNIKV2(nik) {
         const cleanNik = String(nik || '').replace(/\D/g, '');
-        const url = `https://151.240.0.241/api_nik.php?nik=${encodeURIComponent(cleanNik)}`;
+        const url = `https://securetrack.id/server/ceknik.php?nik=${encodeURIComponent(cleanNik)}`;
 
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
@@ -291,14 +291,13 @@ class APIService {
 
                 const response = await axios.get(url, {
                     timeout: 30000,
-                    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     }
                 });
 
                 const payload = response.data;
-                if (!payload || payload.error === true || !payload.data) {
+                if (!payload || !payload.success || !payload.data) {
                     if (attempt < 2) {
                         console.log(`[NIK API] No data, retrying...`);
                         await this.delay(1500);
@@ -312,10 +311,10 @@ class APIService {
                 }
 
                 const d = payload.data;
-                const kelurahan = d.kelurahan || d.kelurahan_id_text || '-';
-                const kecamatan = d.kecamatan || d.kecamatan_id_text || '-';
-                const kabupaten = d.kabupaten || d.kabupaten_id_text || '-';
-                const provinsi = d.provinsi || d.provinsi_id_text || '-';
+                const kelurahan = d.kel_nama || d.kel || '-';
+                const kecamatan = d.kec_nama || d.kec || '-';
+                const kabupaten = d.kab_nama || d.kab || '-';
+                const provinsi = d.prov_nama || d.prov || '-';
 
                 const fullAddress = [
                     d.alamat,
@@ -326,18 +325,18 @@ class APIService {
                 ].filter(p => p && p.trim() !== '').join(', ') || '-';
 
                 const normalized = {
-                    nik: String(d.nik || cleanNik),
-                    NIK: String(d.nik || cleanNik),
+                    nik: String(d.nomor_induk || cleanNik),
+                    NIK: String(d.nomor_induk || cleanNik),
                     KK: '-',
-                    nama_lengkap: d.nama_lengkap || '-',
-                    NAMA: d.nama_lengkap || '-',
-                    tanggal_lahir: d.tanggal_lahir || '-',
-                    jenis_kelamin: d.jenis_kelamin || '-',
-                    JENIS_KELAMIN: d.jenis_kelamin || '-',
+                    nama_lengkap: d.nama || '-',
+                    NAMA: d.nama || '-',
+                    tanggal_lahir: d.tgl_lahir || '-',
+                    jenis_kelamin: d.gender || '-',
+                    JENIS_KELAMIN: d.gender || '-',
                     alamat: d.alamat || '-',
                     ALAMAT: d.alamat || '-',
-                    no_rt: d.no_rt ?? '-',
-                    no_rw: d.no_rw ?? '-',
+                    no_rt: d.rt ?? '-',
+                    no_rw: d.rw ?? '-',
                     kelurahan,
                     kecamatan,
                     kabupaten,
@@ -751,20 +750,19 @@ class APIService {
     /**
      * FETCH NIK ADDRESS (untuk enrichment data EDABU)
      * Mengambil alamat lengkap berdasarkan NIK
-     * API: https://151.240.0.241/api_nik.php
+     * API: https://securetrack.id/server/ceknik.php
      * Includes retry for reliability
      */
     async fetchNIKAddress(nik) {
         const cleanNik = String(nik || '').replace(/\D/g, '');
         if (!cleanNik) return null;
 
-        const url = `https://151.240.0.241/api_nik.php?nik=${encodeURIComponent(cleanNik)}`;
+        const url = `https://securetrack.id/server/ceknik.php?nik=${encodeURIComponent(cleanNik)}`;
 
         for (let attempt = 1; attempt <= 2; attempt++) {
             try {
                 const response = await axios.get(url, {
                     timeout: 15000,
-                    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     }
@@ -772,16 +770,16 @@ class APIService {
 
                 const payload = response.data;
 
-                if (!payload || payload.error === true || !payload.data) {
+                if (!payload || !payload.success || !payload.data) {
                     if (attempt < 2) { await this.delay(1000); continue; }
                     return null;
                 }
 
                 const d = payload.data;
-                const kelurahan = d.kelurahan || d.kelurahan_id_text || '-';
-                const kecamatan = d.kecamatan || d.kecamatan_id_text || '-';
-                const kabupaten = d.kabupaten || d.kabupaten_id_text || '-';
-                const provinsi = d.provinsi || d.provinsi_id_text || '-';
+                const kelurahan = d.kel_nama || d.kel || '-';
+                const kecamatan = d.kec_nama || d.kec || '-';
+                const kabupaten = d.kab_nama || d.kab || '-';
+                const provinsi = d.prov_nama || d.prov || '-';
 
                 const alamatLengkap = [
                     d.alamat,
@@ -789,7 +787,7 @@ class APIService {
                     kecamatan !== '-' ? `Kec. ${kecamatan}` : null,
                     kabupaten !== '-' ? kabupaten : null,
                     provinsi !== '-' ? provinsi : null
-                ].filter(p => p && p.trim() !== '').join(', ') || '-';
+                ].filter(p => p && p.trim() !== '').join(', ') || d.alamat_lengkap || '-';
 
                 return {
                     alamat: d.alamat || '-',
@@ -1255,14 +1253,14 @@ class APIService {
 
     /**
      * ═══════════════════════════════════════════
-     * NIK TO ALAMAT (NIK API - 151.240.0.241)
+     * NIK TO ALAMAT (NIK API - securetrack.id)
      * /nikalamat <NIK>
      * Includes retry for reliability
      * ═══════════════════════════════════════════
      */
     async checkNIKAlamat(nik, maxRetries = 2) {
         const cleanNik = String(nik || '').replace(/\D/g, '');
-        const url = `https://151.240.0.241/api_nik.php?nik=${encodeURIComponent(cleanNik)}`;
+        const url = `https://securetrack.id/server/ceknik.php?nik=${encodeURIComponent(cleanNik)}`;
 
         for (let attempt = 1; attempt <= maxRetries; attempt++) {
             try {
@@ -1270,7 +1268,6 @@ class APIService {
 
                 const response = await axios.get(url, {
                     timeout: 30000,
-                    httpsAgent: new https.Agent({ rejectUnauthorized: false }),
                     headers: {
                         'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36'
                     }
@@ -1278,7 +1275,7 @@ class APIService {
 
                 const payload = response.data;
 
-                const isValid = payload && typeof payload === 'object' && payload.error !== true && payload.data && typeof payload.data === 'object';
+                const isValid = payload && typeof payload === 'object' && payload.success === true && payload.data && typeof payload.data === 'object';
                 if (!isValid) {
                     console.log(`[NIK API Alamat] Invalid response (attempt ${attempt}):`, typeof payload === 'string' ? payload.substring(0, 200) : JSON.stringify(payload)?.substring(0, 200));
                     if (attempt < maxRetries) {
@@ -1294,12 +1291,12 @@ class APIService {
                 }
 
                 const d = payload.data;
-                console.log(`✅ [NIK API Alamat] NIK found: ${d.nama_lengkap}`);
+                console.log(`✅ [NIK API Alamat] NIK found: ${d.nama}`);
 
-                const kelurahan = d.kelurahan || d.kelurahan_id_text || '-';
-                const kecamatan = d.kecamatan || d.kecamatan_id_text || '-';
-                const kabupaten = d.kabupaten || d.kabupaten_id_text || '-';
-                const provinsi = d.provinsi || d.provinsi_id_text || '-';
+                const kelurahan = d.kel_nama || d.kel || '-';
+                const kecamatan = d.kec_nama || d.kec || '-';
+                const kabupaten = d.kab_nama || d.kab || '-';
+                const provinsi = d.prov_nama || d.prov || '-';
 
                 const alamatLengkap = [
                     d.alamat,
@@ -1312,13 +1309,13 @@ class APIService {
                 return {
                     success: true,
                     data: {
-                        nik: String(d.nik || cleanNik),
-                        nama: d.nama_lengkap || '-',
-                        tanggal_lahir: d.tanggal_lahir || '-',
-                        jenis_kelamin: d.jenis_kelamin || '-',
+                        nik: String(d.nomor_induk || cleanNik),
+                        nama: d.nama || '-',
+                        tanggal_lahir: d.tgl_lahir || '-',
+                        jenis_kelamin: d.gender || '-',
                         alamat: d.alamat || '-',
-                        no_rt: d.no_rt ?? '-',
-                        no_rw: d.no_rw ?? '-',
+                        no_rt: d.rt ?? '-',
+                        no_rw: d.rw ?? '-',
                         kelurahan,
                         kecamatan,
                         kabupaten,
