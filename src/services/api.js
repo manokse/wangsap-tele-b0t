@@ -137,8 +137,9 @@ class APIService {
                 cleanPhone = '62' + cleanPhone;
             }
 
-            const apiKey = '7307614f472509c745f52c75e74dfbf8';
-            const url = `https://apiv3.asexapi.cloud/phone2cid/?api_key=${apiKey}&phone=${encodeURIComponent(cleanPhone)}`;
+            const apiKey = config.ceknomorv2ApiKey;
+            const baseUrl = config.ceknomorv2BaseUrl;
+            const url = `${baseUrl}?api_key=${apiKey}&phone=${encodeURIComponent(cleanPhone)}`;
             
             console.log(`🔍 [ASEX Phone2CID] Checking: ${cleanPhone}`);
 
@@ -1218,8 +1219,9 @@ class APIService {
     async checkKKV2(noKK) {
         try {
             const cleanKK = String(noKK || '').replace(/\D/g, '');
-            const apiKey = 'fb1010b8c2bece281a954bdb08dca7c2';
-            const url = `https://apiv3.asexapi.cloud/kk2data/?api_key=${apiKey}&no_kk=${encodeURIComponent(cleanKK)}`;
+            const apiKey = config.kkv2ApiKey;
+            const baseUrl = config.kkv2BaseUrl;
+            const url = `${baseUrl}?api_key=${apiKey}&no_kk=${encodeURIComponent(cleanKK)}`;
 
             console.log(`🔍 [ASEX KKv2] Checking KK: ${cleanKK}`);
 

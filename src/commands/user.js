@@ -2236,12 +2236,13 @@ Pilih fitur yang ingin digunakan:
                 return;
             }
 
+            const apiRemaining = result.data?.quota?.remaining || null;
             if (!result.fromCache) {
                 db.updateApiRequest(requestId, 'success', 'Data BPJSTK ditemukan', null, null, result.data);
             }
             db.createTransaction(userId, 'check', bpjstkCost, `Cek BPJSTK berhasil${result.fromCache ? ' (cache)' : ''}`, nik, 'success');
 
-            let textResult = formatter.bpjstkResultMessage(result.data, bpjstkCost, requestId, remainingToken);
+            let textResult = formatter.bpjstkResultMessage(result.data, bpjstkCost, requestId, remainingToken, apiRemaining, result.raw);
             if (result.fromCache) {
                 textResult = `📦 <i>Data dari cache</i>\n\n${textResult}`;
             }

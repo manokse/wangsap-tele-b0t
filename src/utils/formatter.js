@@ -49,6 +49,7 @@ const EMOJI = {
 const LINE = {
     sep:    '────────────────',
     thin:   '┄┄┄┄┄┄┄┄┄┄┄┄',
+    single: '────────────────────',
     double: '════════════════',
     bold:   '━━━━━━━━━━━━━━━━━━'
 };
@@ -516,76 +517,80 @@ ${LINE.thin}
 // ═══════════════════════════════════════════
 // BPJS KETENAGAKERJAAN RESULT MESSAGE
 // ═══════════════════════════════════════════
-function bpjstkResultMessage(data, tokenUsed, requestId = '', remainingToken = 0, apiRemaining = null) {
-    // Data is array from API
+function bpjstkResultMessage(data, tokenUsed, requestId = '', remainingToken = 0, apiRemaining = null, rawData = null) {
     const items = Array.isArray(data) ? data : [data];
+    const rawItems = Array.isArray(rawData) ? rawData : [];
     const totalData = items.length;
-    
+
     let msg = `
-👷 <b>HASIL CEK BPJS KETENAGAKERJAAN</b>
-${LINE.double}
+🏢 <b>HASIL CEK BPJS TK</b>
+${LINE.single}
 
 📊 Total: <b>${totalData}</b> data ditemukan
 `;
 
     items.forEach((d, idx) => {
+        // Extract raw detail fields
+        const raw = rawItems[idx]?.dtBpjsTk?.[0] || {};
+        const kodeKepesertaan = raw.KODE_KEPESERTAAN || null;
+        const kodeTk = raw.KODE_TK || null;
+        const kodePerusahaan = raw.KODE_PERUSAHAAN || null;
+        const kodeDivisi = raw.KODE_DIVISI || null;
+
         if (totalData > 1) {
-            msg += `\n${LINE.double}\n<b>${idx + 1}. ${escapeHtml(d.namaPerusahaan || 'Data')}</b>\n${LINE.double}\n`;
+            msg += `\n━━ ${idx + 1}. ${escapeHtml(d.namaPerusahaan || 'Data')} ━━\n`;
         }
-        
+
         msg += `
-${LINE.sep}
-${EMOJI.user} <b>DATA PESERTA</b>
-${LINE.thin}
-👤 Nama: <b>${escapeHtml(d.namaPeserta || '-')}</b>
-🆔 NIK KTP: <code>${d.nikKtp || '-'}</code>
-💳 No KPJ: <code>${d.kpj || '-'}</code>
-📅 Tanggal Lahir: ${escapeHtml(d.tglLahir || '-')}
-� Jenis Pekerjaan: ${escapeHtml(d.jenisPekerjaan || '-')}
-� Segmen: ${escapeHtml(d.segmen || '-')}
+👤 <b>DATA PESERTA</b>
+${LINE.single}
+├ Nama             : ${escapeHtml(d.namaPeserta || '-')}
+├ NIK KTP          : <code>${d.nikKtp || '-'}</code>
+├ No KPJ           : <code>${d.kpj || '-'}</code>
+├ Tanggal Lahir    : ${escapeHtml(d.tglLahir || '-')}
+├ Jenis Pekerjaan  : ${escapeHtml(d.jenisPekerjaan || '-')}
+├ Segmen           : ${escapeHtml(d.segmen || '-')}`;
+        if (kodeKepesertaan) msg += `\n├ Kode Kepesertaan  : <code>${escapeHtml(kodeKepesertaan)}</code>`;
+        if (kodeTk) msg += `\n└ Kode TK          : <code>${escapeHtml(kodeTk)}</code>`;
 
-${LINE.sep}
+        msg += `
 🏢 <b>DATA PERUSAHAAN</b>
-${LINE.thin}
-Nama: <b>${escapeHtml(d.namaPerusahaan || '-')}</b>
+${LINE.single}
+└ Nama             : ${escapeHtml(d.namaPerusahaan || '-')}`;
+        if (kodePerusahaan) msg += `\n  Kode Perusahaan  : ${escapeHtml(kodePerusahaan)}`;
+        if (kodeDivisi) msg += `\n  Kode Divisi      : ${escapeHtml(kodeDivisi)}`;
 
-${LINE.sep}
+        msg += `
 📋 <b>STATUS KEPESERTAAN</b>
-${LINE.thin}
-🟢 Tgl Aktif: ${escapeHtml(d.tglAktif || '-')}
-🔴 Tgl Non-Aktif: ${escapeHtml(d.tglNa || '-')}
-✅ Status Layak: ${escapeHtml(d.statusLayak || '-')} (${escapeHtml(d.ketLayak || '-')})
-`;
+${LINE.single}
+├ Tgl Aktif        : ${escapeHtml(d.tglAktif || '-')}
+├ Tgl Non-Aktif    : ${escapeHtml(d.tglNa || '-')}
+└ Status Layak     : ${escapeHtml(d.statusLayak || '-')} (${escapeHtml(d.ketLayak || '-')})`;
 
         if (d.alamatDomisili) {
             msg += `
-${LINE.sep}
 🏠 <b>ALAMAT DOMISILI</b>
-${LINE.thin}
-${escapeHtml(d.alamatDomisili)}
-`;
+${LINE.single}
+└ ${escapeHtml(d.alamatDomisili)}`;
         }
 
         if (d.bpjsKes) {
             msg += `
-${LINE.sep}
 🏥 <b>BPJS KESEHATAN</b>
-${LINE.thin}
-${escapeHtml(d.bpjsKes)}
-`;
+${LINE.single}
+└ ${escapeHtml(d.bpjsKes)}`;
         }
     });
 
     msg += `
 ${LINE.double}
 🆔 ID: <code>${requestId}</code>
-🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
-`;
-    
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)`;
+
     if (apiRemaining !== null && apiRemaining !== undefined) {
-        msg += `📊 API Quota: <b>${apiRemaining}</b>\n`;
+        msg += `\n📊 Sisa Quota: <b>${apiRemaining}</b>`;
     }
-    
+
     return msg;
 }
 

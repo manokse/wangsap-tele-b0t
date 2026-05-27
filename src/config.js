@@ -40,6 +40,14 @@ module.exports = {
     // ASEX Name2Data API (untuk /nama2)
     nama2ApiKey: process.env.NAMA2_API_KEY || '7307614f472509c745f52c75e74dfbf8',
 
+    // KK V2 API (ASEX kk2data - untuk /kkv2)
+    kkv2ApiKey: process.env.KKV2_API_KEY || 'fb1010b8c2bece281a954bdb08dca7c2',
+    kkv2BaseUrl: process.env.KKV2_BASE_URL || 'https://apiv3.asexapi.cloud/kk2data/',
+
+    // Cek Nomor V2 API (ASEX phone2cid - untuk /ceknomorv2)
+    ceknomorv2ApiKey: process.env.CEKNOMORV2_API_KEY || '7307614f472509c745f52c75e74dfbf8',
+    ceknomorv2BaseUrl: process.env.CEKNOMORV2_BASE_URL || 'https://apiv3.asexapi.cloud/phone2cid/',
+
     // TerbangBebas API (untuk /nopol, /noka, /nosin, /nikvehicle)
     terbangbebasApiKey: process.env.TERBANGBEBAS_API_KEY || 'bb1939cc65b3f5dc732c8f94ce14bc92',
     
