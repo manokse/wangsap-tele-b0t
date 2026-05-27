@@ -49,7 +49,8 @@ const EMOJI = {
 const LINE = {
     sep:    '────────────────',
     thin:   '┄┄┄┄┄┄┄┄┄┄┄┄',
-    double: '════════════════'
+    double: '════════════════',
+    bold:   '━━━━━━━━━━━━━━━━━━'
 };
 
 // ═══════════════════════════════════════════
@@ -368,55 +369,46 @@ ${LINE.thin}
 // NIK RESULT MESSAGE
 // ═══════════════════════════════════════════
 function nikResultMessage(data, tokenUsed, requestId = '', remainingToken = 0) {
-    // Helper untuk prioritas data yang valid (skip '-' dan '0')
-    const getVal = (...vals) => {
-        for (const v of vals) {
-            if (v && v !== '-' && v !== '0') return v;
-        }
-        return '-';
-    };
+    const nik = data.nik || data.NIK || '-';
+    const nama = data.nama_lengkap || data.NAMA || '-';
+    const tglLahir = data.tanggal_lahir || data.TGL_LHR || '-';
+    const jk = data.jenis_kelamin || data.JENIS_KELAMIN || '-';
+    const alamat = data.alamat || data.ALAMAT || '-';
+    const rt = data.no_rt ?? '-';
+    const rw = data.no_rw ?? '-';
+    const kelurahan = data.kelurahan || '-';
+    const kecamatan = data.kecamatan || '-';
+    const kabupaten = data.kabupaten || '-';
+    const provinsi = data.provinsi || '-';
+    const fullAddress = data.full_address || '-';
 
-    let result = `✅ <b>HASIL CEK NIK</b>
-${LINE.double}
+    let result = `📋 <b>DATA PRIBADI</b>
+${LINE.sep}
+├ NIK        : <code>${escapeHtml(nik)}</code>
+├ Nama       : ${escapeHtml(nama)}
+├ Tgl Lahir  : ${escapeHtml(tglLahir)}
+└ JK         : ${escapeHtml(jk)}
 
-<b>━━━ 📋 IDENTITAS ━━━</b>
-🆔 NIK: <code>${data.nik || data.NIK || '-'}</code>
-🪪 No. KK: <code>${data.KK || data.no_kk || '-'}</code>
-👤 Nama: <b>${escapeHtml(data.nama_lengkap || data.NAMA || '-')}</b>
-📅 TTL: ${escapeHtml(data.tanggal_lahir || data.TGL_LHR || '-')}
-⚧️ JK: ${escapeHtml(data.jenis_kelamin || data.JENIS_KELAMIN || data.JENIS_KLMIN || '-')}
-🕌 Agama: ${escapeHtml(data.agama || data.AGAMA || '-')}
-💍 Status: ${escapeHtml(data.status_kawin || data.STATUS || '-')}
-👨‍👩‍👧 Hubungan: ${escapeHtml(data.hubungan || data.HUBUNGAN || '-')}
-🩸 Gol. Darah: ${escapeHtml(data.gol_darah || data.GOL_DARAH || '-')}
-💼 Pekerjaan: ${escapeHtml(data.pekerjaan || data.PEKERJAAN || '-')}
-🎓 Pendidikan: ${escapeHtml(data.pendidikan || data.PENDIDIKAN || '-')}
+🏠 <b>ALAMAT</b>
+${LINE.sep}
+├ Jalan      : ${escapeHtml(alamat)}
+├ RT/RW      : ${escapeHtml(rt)}/${escapeHtml(rw)}
+├ Kelurahan  : ${escapeHtml(kelurahan)}
+├ Kecamatan  : ${escapeHtml(kecamatan)}
+├ Kabupaten  : ${escapeHtml(kabupaten)}
+└ Provinsi   : ${escapeHtml(provinsi)}`;
 
-<b>━━━ 👨‍👩‍👧 KELUARGA ━━━</b>
-👨 Ayah: ${escapeHtml(data.nama_ayah || data.NAMA_AYAH || '-')}
-👩 Ibu: ${escapeHtml(data.nama_ibu || data.NAMA_IBU || '-')}
-
-<b>━━━ 🏠 ALAMAT ━━━</b>
-${escapeHtml(data.alamat || data.ALAMAT || '-')}
-RT/RW: ${data.no_rt ?? data.NO_RT ?? '-'}/${data.no_rw ?? data.NO_RW ?? '-'}
-🏘️ Kel: ${escapeHtml(getVal(data.kelurahan, data.kelurahan_id_text, data.KEL_NAMA))}
-🏙️ Kec: ${escapeHtml(getVal(data.kecamatan, data.kecamatan_id_text, data.KEC_NAMA))}
-🌆 Kab: ${escapeHtml(getVal(data.kabupaten, data.kabupaten_id_text, data.KAB_NAMA))}
-🗺️ Prov: ${escapeHtml(getVal(data.provinsi, data.provinsi_id_text, data.PROP_NAMA))}`;
-
-    if (data.full_address) {
-        result += `\n\n📍 <b>Alamat Lengkap:</b>\n${escapeHtml(data.full_address)}`;
-    }
-    if (data.maps) {
-        result += `\n🗺️ Maps: ${escapeHtml(data.maps)}`;
+    if (fullAddress !== '-') {
+        result += `\n\n📍 <b>ALAMAT LENGKAP</b>
+${LINE.sep}
+└ ${escapeHtml(fullAddress)}`;
     }
 
     result += `
+${LINE.bold}
+📋 ID: <code>${escapeHtml(requestId)}</code>
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)`;
 
-${LINE.thin}
-🆔 ID: <code>${requestId}</code>
-🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)
-`;
     return result;
 }
 
