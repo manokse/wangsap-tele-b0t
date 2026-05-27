@@ -53,11 +53,11 @@ class BPJSTKService {
             }
         }
 
-        console.log(`[BPJSTK] NIK data found: ${d.nama}, tglLahir: ${tglLahir}`);
+        console.log(`[BPJSTK] NIK data found: ${d.nama || d.nama_lengkap_user}, tglLahir: ${tglLahir}`);
 
         return {
             success: true,
-            nama: d.nama || '',
+            nama: d.nama || d.nama_lengkap_user || '',
             tglLahir: tglLahir,
             data: d
         };

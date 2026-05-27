@@ -330,8 +330,8 @@ class APIService {
                     nik: String(d.nomor_induk || cleanNik),
                     NIK: String(d.nomor_induk || cleanNik),
                     KK: '-',
-                    nama_lengkap: d.nama || '-',
-                    NAMA: d.nama || '-',
+                    nama_lengkap: d.nama || d.nama_lengkap_user || '-',
+                    NAMA: d.nama || d.nama_lengkap_user || '-',
                     tanggal_lahir: d.tgl_lahir || '-',
                     jenis_kelamin: d.gender || '-',
                     JENIS_KELAMIN: d.gender || '-',
@@ -1294,7 +1294,7 @@ class APIService {
                 }
 
                 const d = payload.data;
-                console.log(`✅ [NIK API Alamat] NIK found: ${d.nama}`);
+                console.log(`✅ [NIK API Alamat] NIK found: ${d.nama || d.nama_lengkap_user}`);
 
                 const kelurahan = d.kel_nama || d.kel || '-';
                 const kecamatan = d.kec_nama || d.kec || '-';
@@ -1313,7 +1313,7 @@ class APIService {
                     success: true,
                     data: {
                         nik: String(d.nomor_induk || cleanNik),
-                        nama: d.nama || '-',
+                        nama: d.nama || d.nama_lengkap_user || '-',
                         tanggal_lahir: d.tgl_lahir || '-',
                         jenis_kelamin: d.gender || '-',
                         alamat: d.alamat || '-',
