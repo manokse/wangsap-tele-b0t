@@ -297,9 +297,11 @@ class APIService {
                 });
 
                 const payload = response.data;
+                console.log(`[NIK API V2] Raw payload:`, JSON.stringify(payload));
+
                 if (!payload || !payload.success || !payload.data) {
+                    console.log(`[NIK API V2] No data in response:`, JSON.stringify(payload));
                     if (attempt < 2) {
-                        console.log(`[NIK API] No data, retrying...`);
                         await this.delay(1500);
                         continue;
                     }
@@ -341,18 +343,19 @@ class APIService {
                     kecamatan,
                     kabupaten,
                     provinsi,
-                    agama: '-',
-                    status_kawin: '-',
-                    hubungan: '-',
-                    gol_darah: '-',
-                    pekerjaan: '-',
-                    pendidikan: '-',
-                    nama_ayah: '-',
-                    nama_ibu: '-',
+                    agama: d.agama || '-',
+                    status_kawin: d.status_kawin || d.status || '-',
+                    hubungan: d.hubungan || '-',
+                    gol_darah: d.gol_darah || '-',
+                    pekerjaan: d.pekerjaan || '-',
+                    pendidikan: d.pendidikan || '-',
+                    nama_ayah: d.nama_ayah || '-',
+                    nama_ibu: d.nama_ibu || '-',
                     full_address: fullAddress
                 };
 
                 console.log(`✅ [NIK API] NIK V2 found: ${normalized.nama_lengkap}`);
+                console.log(`[NIK API V2] Normalized:`, JSON.stringify(normalized));
 
                 return {
                     success: true,
