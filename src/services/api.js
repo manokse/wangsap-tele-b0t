@@ -220,17 +220,13 @@ class APIService {
         try {
             return await this.withRetry(async () => {
                 const apiKey = this.getApiKey('archi3');
-                const params = new URLSearchParams();
-                params.append('key', apiKey);
-                params.append('method', 'nik');
-                params.append('data', nik);
-                params.append('pagination', '1');
+                const url = `${this.archi3BaseUrl}?key=${encodeURIComponent(apiKey)}&method=nik&data=${encodeURIComponent(nik)}`;
 
                 console.log(`🔍 [Archi3] Checking NIK: ${nik}`);
 
-                const response = await axios.post(this.archi3BaseUrl, params.toString(), {
-                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                const response = await axios.get(url, {
                     timeout: 30000,
+                    headers: { 'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36' }
                 });
 
                 const data = response.data;
@@ -243,6 +239,43 @@ class APIService {
                         refund: true
                     };
                 }
+
+                // Normalize Archi3 UPPERCASE → lowercase for formatter compatibility
+                const p = data.data[0];
+                const normalized = {
+                    nik: p.NIK, NIK: p.NIK,
+                    KK: p.KK,
+                    nama_lengkap: p.NAMA, NAMA: p.NAMA,
+                    tanggal_lahir: `${p.TEMPAT_LAHIR || '-'}, ${p.TANGGAL_LAHIR || '-'}`,
+                    TEMPAT_LAHIR: p.TEMPAT_LAHIR, TANGGAL_LAHIR: p.TANGGAL_LAHIR,
+                    jenis_kelamin: p.JENIS_KELAMIN, JENIS_KELAMIN: p.JENIS_KELAMIN,
+                    alamat: p.ALAMAT, ALAMAT: p.ALAMAT,
+                    no_rt: '-', no_rw: '-',
+                    kelurahan: '-', kecamatan: '-', kabupaten: '-', provinsi: '-',
+                    agama: p.AGAMA, AGAMA: p.AGAMA,
+                    status_kawin: p.STATUS, STATUS: p.STATUS,
+                    hubungan: p.HUBUNGAN, HUBUNGAN: p.HUBUNGAN,
+                    gol_darah: p.GOL_DARAH, GOL_DARAH: p.GOL_DARAH,
+                    pekerjaan: p.PEKERJAAN, PEKERJAAN: p.PEKERJAAN,
+                    pendidikan: p.PENDIDIKAN, PENDIDIKAN: p.PENDIDIKAN,
+                    nama_ayah: p.NAMA_AYAH, NAMA_AYAH: p.NAMA_AYAH,
+                    nama_ibu: p.NAMA_IBU, NAMA_IBU: p.NAMA_IBU,
+                };
+
+                console.log(`✅ [Archi3] NIK found: ${p.NAMA}`);
+
+                return {
+                    success: true,
+                    data: normalized,
+                    quota: data.account ? { remaining: data.account.remaining, limit: data.account.limit } : null,
+                    refund: false
+                };
+            });
+        } catch (error) {
+            console.error('Archi3 NIK API Error:', error.message);
+            return this.handleError(error);
+        }
+    }
 
                 const p = data.data[0];
                 const normalized = {
