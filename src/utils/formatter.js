@@ -382,6 +382,10 @@ function nikResultMessage(data, tokenUsed, requestId = '', remainingToken = 0) {
     const kabupaten = data.kabupaten || '-';
     const provinsi = data.provinsi || '-';
     const fullAddress = data.full_address || '-';
+    const noKK = data.KK || data.no_kk || '-';
+    const hubungan = data.HUBUNGAN || data.hubungan || '-';
+    const namaIbu = data.NAMA_IBU || data.nama_ibu || '-';
+    const namaAyah = data.NAMA_AYAH || data.nama_ayah || '-';
 
     let result = `📋 <b>DATA PRIBADI</b>
 ${LINE.sep}
@@ -397,7 +401,14 @@ ${LINE.sep}
 ├ Kelurahan  : ${escapeHtml(kelurahan)}
 ├ Kecamatan  : ${escapeHtml(kecamatan)}
 ├ Kabupaten  : ${escapeHtml(kabupaten)}
-└ Provinsi   : ${escapeHtml(provinsi)}`;
+└ Provinsi   : ${escapeHtml(provinsi)}
+
+👪 <b>DATA KELUARGA</b>
+${LINE.sep}
+├ No KK      : <code>${escapeHtml(noKK)}</code>
+├ Hubungan   : ${escapeHtml(hubungan)}
+├ Nama Ibu   : ${escapeHtml(namaIbu)}
+└ Nama Ayah  : ${escapeHtml(namaAyah)}`;
 
     if (fullAddress !== '-') {
         result += `\n\n📍 <b>ALAMAT LENGKAP</b>
