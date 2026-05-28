@@ -242,6 +242,9 @@ class APIService {
 
                 // Normalize Archi3 UPPERCASE → lowercase for formatter compatibility
                 const p = data.data[0];
+
+                // Parse address components from full alamat string
+                const addrParts = parseArchiAddress(p.ALAMAT || '');
                 const normalized = {
                     nik: p.NIK, NIK: p.NIK,
                     KK: p.KK,
@@ -250,8 +253,9 @@ class APIService {
                     TEMPAT_LAHIR: p.TEMPAT_LAHIR, TANGGAL_LAHIR: p.TANGGAL_LAHIR,
                     jenis_kelamin: p.JENIS_KELAMIN, JENIS_KELAMIN: p.JENIS_KELAMIN,
                     alamat: p.ALAMAT, ALAMAT: p.ALAMAT,
-                    no_rt: '-', no_rw: '-',
-                    kelurahan: '-', kecamatan: '-', kabupaten: '-', provinsi: '-',
+                    no_rt: addrParts.rt, no_rw: addrParts.rw,
+                    kelurahan: addrParts.kelurahan, kecamatan: addrParts.kecamatan,
+                    kabupaten: addrParts.kabupaten, provinsi: addrParts.provinsi,
                     agama: p.AGAMA, AGAMA: p.AGAMA,
                     status_kawin: p.STATUS, STATUS: p.STATUS,
                     hubungan: p.HUBUNGAN, HUBUNGAN: p.HUBUNGAN,
@@ -1338,6 +1342,32 @@ class APIService {
             }
         }
     }
+}
+
+/**
+ * Parse alamat Dukcapil Archi3 → komponen address
+ * Format: "JL. XXX RT N / RW M, KELURAHAN, KECAMATAN, KABUPATEN, PROVINSI"
+ */
+function parseArchiAddress(alamat) {
+    const result = { rt: '-', rw: '-', kelurahan: '-', kecamatan: '-', kabupaten: '-', provinsi: '-' };
+    if (!alamat) return result;
+
+    // Extract RT/RW from street part
+    const rtRwMatch = alamat.match(/RT\s*(\d+)\s*\/\s*RW\s*(\d+)/i);
+    if (rtRwMatch) {
+        result.rt = rtRwMatch[1];
+        result.rw = rtRwMatch[2];
+    }
+
+    // Split by comma and parse region parts
+    // Format: [street], [kelurahan], [kecamatan], [kabupaten/kota], [provinsi]
+    const parts = alamat.split(',').map(s => s.trim()).filter(Boolean);
+    if (parts.length > 4) result.kelurahan = parts[parts.length - 4];
+    if (parts.length > 3) result.kecamatan = parts[parts.length - 3];
+    if (parts.length > 2) result.kabupaten = parts[parts.length - 2];
+    if (parts.length > 1) result.provinsi = parts[parts.length - 1];
+
+    return result;
 }
 
 module.exports = new APIService();
