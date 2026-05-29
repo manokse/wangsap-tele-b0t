@@ -2148,8 +2148,8 @@ Pilih fitur yang ingin digunakan:
     },
 
     /**
-     * Command: /bpjstk <NIK>
-     * Cek data BPJS Ketenagakerjaan
+     * Command: /bpjstk <NIK/KPJ>
+     * Cek data BPJS Ketenagakerjaan (support NIK & KPJ)
      */
     async bpjstk(bot, msg, args) {
         const userId = msg.from.id;
@@ -2158,17 +2158,18 @@ Pilih fitur yang ingin digunakan:
         
         if (args.length === 0) {
             await bot.sendMessage(msg.chat.id,
-                `❌ <b>Format Salah</b>\n\nGunakan: <code>/bpjstk &lt;NIK&gt;</code>\nContoh: <code>/bpjstk 1234567890123456</code>`,
+                `❌ <b>Format Salah</b>\n\nGunakan: <code>/bpjstk &lt;NIK/KPJ&gt;</code>\nContoh: <code>/bpjstk 1234567890123456</code> atau <code>/bpjstk 24077721041</code>`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
         }
 
-        const nik = args[0].replace(/\D/g, '');
+        const input = args[0].replace(/\D/g, '');
+        const isNIK = input.length === 16;
 
-        if (!isValidNIK(nik)) {
+        if (!input || input.length < 5) {
             await bot.sendMessage(msg.chat.id,
-                `❌ <b>NIK Tidak Valid</b>\n\nNIK harus <b>16 digit angka</b>`,
+                `❌ <b>Input Tidak Valid</b>\n\nMasukkan NIK (16 digit) atau No. KPJ.\nContoh: <code>/bpjstk 1234567890123456</code> atau <code>/bpjstk 24077721041</code>`,
                 { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
             );
             return;
@@ -2195,24 +2196,25 @@ Pilih fitur yang ingin digunakan:
             return;
         }
 
-        const requestId = db.createApiRequest(userId, 'bpjstk', nik, 'bpjstk', bpjstkCost);
+        const lookupLabel = isNIK ? `NIK: ${input}` : `KPJ: ${input}`;
+        const requestId = db.createApiRequest(userId, 'bpjstk', input, 'bpjstk', bpjstkCost);
 
         const processingMsg = await bot.sendMessage(msg.chat.id,
-            `⏳ <b>Sedang Proses...</b>\n\n🏢 Mencari data BPJS Ketenagakerjaan: <b>${nik}</b>\n🆔 ID: <code>${requestId}</code>\n\n<i>Mohon tunggu sebentar...</i>`,
+            `⏳ <b>Sedang Proses...</b>\n\n🏢 Mencari data BPJS Ketenagakerjaan\n🔍 ${lookupLabel}\n🆔 ID: <code>${requestId}</code>\n\n<i>Mohon tunggu sebentar...</i>`,
             { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
         );
 
         db.deductTokens(userId, bpjstkCost);
 
         try {
-            let result = await apiService.checkBPJSTK(nik);
+            let result = await apiService.checkBPJSTK(input);
             
             const updatedUser = db.getUser(userId);
             const remainingToken = updatedUser?.token_balance || 0;
 
             // If API fails, try to get from cache
             if (!result.success) {
-                const cached = db.getCachedApiResponse('bpjstk', nik, 9999 / 24);
+                const cached = db.getCachedApiResponse('bpjstk', input, 9999 / 24);
                 if (cached && cached.response_data) {
                     result = {
                         success: true,
@@ -2227,7 +2229,7 @@ Pilih fitur yang ingin digunakan:
                     db.refundTokens(userId, bpjstkCost);
                 }
                 db.updateApiRequest(requestId, 'failed', null, null, result.error);
-                db.createTransaction(userId, 'check', bpjstkCost, 'Cek BPJSTK gagal', nik, 'failed');
+                db.createTransaction(userId, 'check', bpjstkCost, 'Cek BPJSTK gagal', input, 'failed');
 
                 await bot.editMessageText(
                     `❌ <b>Gagal</b>\n\n${formatter.escapeHtml(result.error)}\n\n${result.refund ? `🪙 Token dikembalikan: <b>${bpjstkCost} token</b>\n` : ''}🆔 ID: <code>${requestId}</code>`,
@@ -2240,7 +2242,7 @@ Pilih fitur yang ingin digunakan:
             if (!result.fromCache) {
                 db.updateApiRequest(requestId, 'success', 'Data BPJSTK ditemukan', null, null, result.data);
             }
-            db.createTransaction(userId, 'check', bpjstkCost, `Cek BPJSTK berhasil${result.fromCache ? ' (cache)' : ''}`, nik, 'success');
+            db.createTransaction(userId, 'check', bpjstkCost, `Cek BPJSTK berhasil${result.fromCache ? ' (cache)' : ''}`, input, 'success');
 
             let textResult = formatter.bpjstkResultMessage(result.data, bpjstkCost, requestId, remainingToken, apiRemaining, result.raw);
             if (result.fromCache) {
@@ -2255,7 +2257,7 @@ Pilih fitur yang ingin digunakan:
         } catch (error) {
             db.refundTokens(userId, bpjstkCost);
             db.updateApiRequest(requestId, 'failed', null, null, error.message);
-            db.createTransaction(userId, 'check', bpjstkCost, 'Cek BPJSTK gagal', nik, 'failed');
+            db.createTransaction(userId, 'check', bpjstkCost, 'Cek BPJSTK gagal', input, 'failed');
 
             await bot.editMessageText(
                 `❌ <b>Error</b>\n\n${formatter.escapeHtml(error.message)}\n\n🪙 Token dikembalikan: <b>${bpjstkCost} token</b>\n🆔 ID: <code>${requestId}</code>`,

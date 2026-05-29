@@ -742,10 +742,10 @@ class APIService {
      * CEK BPJS KETENAGAKERJAAN (BPJSTK)
      * Mengecek data BPJS Ketenagakerjaan berdasarkan NIK
      */
-    async checkBPJSTK(nik) {
+    async checkBPJSTK(input) {
         try {
             const BPJSTKService = require('./bpjstk');
-            const result = await BPJSTKService.checkByNIK(nik);
+            const result = await BPJSTKService.check(input);
             return result;
         } catch (error) {
             console.error('BPJSTK API Error:', error.message);
