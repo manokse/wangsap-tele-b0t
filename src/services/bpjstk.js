@@ -69,16 +69,16 @@ class BPJSTKService {
     }
 
     /**
-     * Step 2: Hit BPJSTK API with nik, nama, tglLahir
+     * Step 2: Hit BPJSTK API with nik (searchfull endpoint)
      */
-    async searchBPJSTK(nik, nama, tglLahir, skipCache = false) {
+    async searchBPJSTK(nik, skipCache = false) {
         const cleanNik = String(nik || '').replace(/\D/g, '');
-        let url = `${BPJSTK_NIK_URL}?nik=${encodeURIComponent(cleanNik)}&apikey=${encodeURIComponent(BPJSTK_API_KEY)}&nama=${encodeURIComponent(nama)}&tglLahir=${encodeURIComponent(tglLahir)}`;
+        let url = `${BPJSTK_NIK_URL}?nik=${encodeURIComponent(cleanNik)}&apikey=${encodeURIComponent(BPJSTK_API_KEY)}`;
         if (skipCache) {
             url += `&_t=${Date.now()}`;
         }
 
-        console.log(`[BPJSTK] Searching BPJSTK: ${cleanNik}, ${nama}, ${tglLahir}${skipCache ? ' (fresh)' : ''}`);
+        console.log(`[BPJSTK] Searching BPJSTK (searchfull): ${cleanNik}${skipCache ? ' (fresh)' : ''}`);
 
         const response = await axios.get(url, {
             timeout: 60000,
@@ -113,7 +113,7 @@ class BPJSTKService {
                 const hasImage = payload.raw?.[0]?.kartuBpjsBase64 && payload.raw[0].kartuBpjsBase64.length > 100;
                 if (!hasImage) {
                     console.log('[BPJSTK] Cached response has no kartu image, retrying with fresh request');
-                    return await this.searchBPJSTK(nik, nama, tglLahir, true);
+                    return await this.searchBPJSTK(nik, true);
                 }
             }
 
@@ -142,27 +142,8 @@ class BPJSTKService {
         console.log(`[BPJSTK] Checking NIK: ${nik}`);
 
         try {
-            // Step 1: Get nama & tglLahir from NIK API
-            const nikResult = await this.fetchNIKData(nik);
-
-            if (!nikResult.success) {
-                return {
-                    success: false,
-                    error: `Gagal mengambil data NIK: ${nikResult.error}`,
-                    refund: true
-                };
-            }
-
-            if (!nikResult.nama || !nikResult.tglLahir) {
-                return {
-                    success: false,
-                    error: 'Data nama/tanggal lahir tidak tersedia dari NIK.',
-                    refund: true
-                };
-            }
-
-            // Step 2: Search BPJSTK
-            const result = await this.searchBPJSTK(nik, nikResult.nama, nikResult.tglLahir);
+            // Langsung hit searchfull endpoint (tidak perlu securetrack.id)
+            const result = await this.searchBPJSTK(nik);
             return result;
 
         } catch (error) {
