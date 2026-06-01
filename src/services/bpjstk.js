@@ -71,11 +71,14 @@ class BPJSTKService {
     /**
      * Step 2: Hit BPJSTK API with nik, nama, tglLahir
      */
-    async searchBPJSTK(nik, nama, tglLahir) {
+    async searchBPJSTK(nik, nama, tglLahir, skipCache = false) {
         const cleanNik = String(nik || '').replace(/\D/g, '');
-        const url = `${BPJSTK_NIK_URL}?nik=${encodeURIComponent(cleanNik)}&apikey=${encodeURIComponent(BPJSTK_API_KEY)}&nama=${encodeURIComponent(nama)}&tglLahir=${encodeURIComponent(tglLahir)}`;
+        let url = `${BPJSTK_NIK_URL}?nik=${encodeURIComponent(cleanNik)}&apikey=${encodeURIComponent(BPJSTK_API_KEY)}&nama=${encodeURIComponent(nama)}&tglLahir=${encodeURIComponent(tglLahir)}`;
+        if (skipCache) {
+            url += `&_t=${Date.now()}`;
+        }
 
-        console.log(`[BPJSTK] Searching BPJSTK: ${cleanNik}, ${nama}, ${tglLahir}`);
+        console.log(`[BPJSTK] Searching BPJSTK: ${cleanNik}, ${nama}, ${tglLahir}${skipCache ? ' (fresh)' : ''}`);
 
         const response = await axios.get(url, {
             timeout: 60000,
@@ -104,6 +107,16 @@ class BPJSTKService {
 
         if (payload.status === 'success' && payload.data && payload.data.length > 0) {
             console.log(`[BPJSTK] SUCCESS - Found ${payload.count || payload.data.length} record(s) ${payload.cached ? '(cached)' : ''}`);
+
+            // If response is cached and kartu image is null, retry with fresh request
+            if (payload.cached && !skipCache) {
+                const hasImage = payload.raw?.[0]?.kartuBpjsBase64 && payload.raw[0].kartuBpjsBase64.length > 100;
+                if (!hasImage) {
+                    console.log('[BPJSTK] Cached response has no kartu image, retrying with fresh request');
+                    return await this.searchBPJSTK(nik, nama, tglLahir, true);
+                }
+            }
+
             return {
                 success: true,
                 data: payload.data,
@@ -187,8 +200,15 @@ class BPJSTKService {
         const cleanKpj = String(kpj || '').replace(/\D/g, '');
         console.log(`[BPJSTK] Checking KPJ: ${cleanKpj}`);
 
+        return await this._searchKPJ(cleanKpj);
+    }
+
+    async _searchKPJ(kpj, skipCache = false) {
         try {
-            const url = `${BPJSTK_KPJ_URL}?kpj=${encodeURIComponent(cleanKpj)}&apikey=${encodeURIComponent(BPJSTK_API_KEY)}`;
+            let url = `${BPJSTK_KPJ_URL}?kpj=${encodeURIComponent(kpj)}&apikey=${encodeURIComponent(BPJSTK_API_KEY)}`;
+            if (skipCache) {
+                url += `&_t=${Date.now()}`;
+            }
 
             const response = await axios.get(url, {
                 timeout: 60000,
@@ -217,6 +237,16 @@ class BPJSTKService {
 
             if (payload.status === 'success' && payload.data && payload.data.length > 0) {
                 console.log(`[BPJSTK] KPJ SUCCESS - Found ${payload.count || payload.data.length} record(s) ${payload.cached ? '(cached)' : ''}`);
+
+                // If response is cached and kartu image is null, retry with fresh request
+                if (payload.cached && !skipCache) {
+                    const hasImage = payload.raw?.[0]?.kartuBpjsBase64 && payload.raw[0].kartuBpjsBase64.length > 100;
+                    if (!hasImage) {
+                        console.log('[BPJSTK] Cached KPJ response has no kartu image, retrying with fresh request');
+                        return await this._searchKPJ(kpj, true);
+                    }
+                }
+
                 return {
                     success: true,
                     data: payload.data,
