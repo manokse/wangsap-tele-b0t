@@ -14,8 +14,8 @@ const axios = require('axios');
 
 // API Configuration
 const NIK_API_URL = 'https://securetrack.id/server/ceknik.php';
-const BPJSTK_NIK_URL = 'http://38.49.208.151:3540/api/search';
-const BPJSTK_KPJ_URL = 'http://38.49.208.151:3540/api/search/kpj';
+const BPJSTK_NIK_URL = process.env.BPJSTK_NIK_URL || 'http://38.49.208.151:3540/api/search';
+const BPJSTK_KPJ_URL = process.env.BPJSTK_KPJ_URL || 'http://38.49.208.151:3540/api/search/kpj';
 const BPJSTK_API_KEY = process.env.BPJSTK_API_KEY || 'bpjstk_f6f0baf41e1a4fb3fc916ba489041639e3caf5390fd482b0';
 
 class BPJSTKService {
