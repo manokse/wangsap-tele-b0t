@@ -2249,11 +2249,49 @@ Pilih fitur yang ingin digunakan:
                 textResult = `📦 <i>Data dari cache</i>\n\n${textResult}`;
             }
 
-            await bot.editMessageText(textResult, {
-                chat_id: msg.chat.id,
-                message_id: processingMsg.message_id,
-                parse_mode: 'HTML'
-            });
+            // Check for kartu BPJS image
+            const kartuBpjsBase64 = result.raw?.[0]?.kartuBpjsBase64;
+            if (kartuBpjsBase64 && kartuBpjsBase64.length > 100) {
+                try {
+                    // Strip data:image/png;base64, prefix if present
+                    const base64Data = kartuBpjsBase64.includes('base64,') ? kartuBpjsBase64.split('base64,')[1] : kartuBpjsBase64;
+                    const rawBuffer = Buffer.from(base64Data, 'base64');
+                    const imageBuffer = await addWatermark(rawBuffer, userId);
+
+                    // Delete processing message
+                    await bot.deleteMessage(msg.chat.id, processingMsg.message_id).catch(() => {});
+
+                    // Short caption for photo
+                    const items = Array.isArray(result.data) ? result.data : [result.data];
+                    const first = items[0] || {};
+                    const shortCaption = `🏢 <b>BPJS TK - KARTU</b>\n👤 <b>${formatter.escapeHtml(first.namaPeserta || '-')}</b>\n🆔 <code>${first.nikKtp || '-'}</code>`;
+
+                    await bot.sendPhoto(msg.chat.id, imageBuffer, {
+                        caption: shortCaption,
+                        parse_mode: 'HTML',
+                        reply_to_message_id: msg.message_id
+                    });
+
+                    // Send full detail as follow-up
+                    await bot.sendMessage(msg.chat.id, textResult, {
+                        parse_mode: 'HTML',
+                        reply_to_message_id: msg.message_id
+                    });
+                } catch (imgErr) {
+                    console.error('Error sending kartu BPJS photo:', imgErr.message);
+                    await bot.editMessageText(textResult, {
+                        chat_id: msg.chat.id,
+                        message_id: processingMsg.message_id,
+                        parse_mode: 'HTML'
+                    });
+                }
+            } else {
+                await bot.editMessageText(textResult, {
+                    chat_id: msg.chat.id,
+                    message_id: processingMsg.message_id,
+                    parse_mode: 'HTML'
+                });
+            }
         } catch (error) {
             db.refundTokens(userId, bpjstkCost);
             db.updateApiRequest(requestId, 'failed', null, null, error.message);
