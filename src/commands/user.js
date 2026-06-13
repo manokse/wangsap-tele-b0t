@@ -118,7 +118,7 @@ const userCommands = {
             parse_mode: 'HTML',
             reply_markup: {
                 keyboard: [
-                    [{ text: '💳 Deposit' }, { text: '🪙 Saldo' }],
+                    [{ text: '💳 Deposit', style: 'primary' }, { text: '🪙 Saldo', style: 'success' }],
                     [{ text: '📋 Menu' }, { text: '❓ Bantuan' }]
                 ],
                 resize_keyboard: true,
@@ -154,16 +154,16 @@ Pilih fitur yang ingin digunakan:
         const inlineKeyboard = [
             // ── V1 Features ──
             [
-                { text: `🔍 CekNIK (${checkCost}t)`, callback_data: 'menu_ceknik' },
-                { text: `👤 Nama (${namaCost}t)`, callback_data: 'menu_nama' }
+                { text: `🔍 CekNIK (${checkCost}t)`, callback_data: 'menu_ceknik', style: 'primary' },
+                { text: `👤 Nama (${namaCost}t)`, callback_data: 'menu_nama', style: 'primary' }
             ],
             [
-                { text: `👨‍👩‍👧‍👦 KK (${kkCost}t)`, callback_data: 'menu_kk' },
-                { text: `📱 CekNomor (${ceknomorCost}t)`, callback_data: 'menu_ceknomor' }
+                { text: `👨‍👩‍👧‍👦 KK (${kkCost}t)`, callback_data: 'menu_kk', style: 'primary' },
+                { text: `📱 CekNomor (${ceknomorCost}t)`, callback_data: 'menu_ceknomor', style: 'primary' }
             ],
             [
-                { text: `📸 NikFoto (${parseInt(settings.nikfoto_cost) || config.nikfotoCost}t)`, callback_data: 'menu_nikfoto' },
-                { text: `📋 NikLengkap (${parseInt(settings.niklengkap_cost) || config.nikLengkapCost}t)`, callback_data: 'menu_niklengkap' }
+                { text: `📸 NikFoto (${parseInt(settings.nikfoto_cost) || config.nikfotoCost}t)`, callback_data: 'menu_nikfoto', style: 'primary' },
+                { text: `📋 NikLengkap (${parseInt(settings.niklengkap_cost) || config.nikLengkapCost}t)`, callback_data: 'menu_niklengkap', style: 'primary' }
             ],
             // ── V2 Features ──
             [
@@ -178,29 +178,29 @@ Pilih fitur yang ingin digunakan:
             ],
             // ── BPJS & Kendaraan ──
             [
-                { text: `🏥 BPJS (${edabuCost}t)`, callback_data: 'menu_edabu' },
-                { text: `🏥 BPJS Massal`, callback_data: 'menu_edabumassal' }
+                { text: `🏥 BPJS (${edabuCost}t)`, callback_data: 'menu_edabu', style: 'primary' },
+                { text: `🏥 BPJS Massal`, callback_data: 'menu_edabumassal', style: 'primary' }
             ],
             [
-                { text: `🛡️ BPJS TK (${bpjstkCost}t)`, callback_data: 'menu_bpjstk' },
-                { text: `🚗 Nopol (${nopolCost}t)`, callback_data: 'menu_nopol' }
+                { text: `🛡️ BPJS TK (${bpjstkCost}t)`, callback_data: 'menu_bpjstk', style: 'primary' },
+                { text: `🚗 Nopol (${nopolCost}t)`, callback_data: 'menu_nopol', style: 'primary' }
             ],
             [
-                { text: `🔧 Noka (${parseInt(settings.noka_cost) || config.nokaCost}t)`, callback_data: 'menu_noka' },
-                { text: `🔩 Nosin (${parseInt(settings.nosin_cost) || config.nosinCost}t)`, callback_data: 'menu_nosin' }
+                { text: `🔧 Noka (${parseInt(settings.noka_cost) || config.nokaCost}t)`, callback_data: 'menu_noka', style: 'primary' },
+                { text: `🔩 Nosin (${parseInt(settings.nosin_cost) || config.nosinCost}t)`, callback_data: 'menu_nosin', style: 'primary' }
             ],
             [
-                { text: `🪪 NikPlat (${parseInt(settings.nikplat_cost) || config.nikplatCost}t)`, callback_data: 'menu_nikplat' }
+                { text: `🪪 NikPlat (${parseInt(settings.nikplat_cost) || config.nikplatCost}t)`, callback_data: 'menu_nikplat', style: 'primary' }
             ],
             // ── Lainnya ──
             [
-                { text: `🔐 DataBocor (${databocorCost}t)`, callback_data: 'menu_databocor' },
-                { text: `📱 GetContact (${getcontactCost}t)`, callback_data: 'menu_getcontact' }
+                { text: `🔐 DataBocor (${databocorCost}t)`, callback_data: 'menu_databocor', style: 'danger' },
+                { text: `📱 GetContact (${getcontactCost}t)`, callback_data: 'menu_getcontact', style: 'danger' }
             ],
             // ── Akun ──
             [
-                { text: '💳 Deposit', callback_data: 'goto_deposit' },
-                { text: '🪙 Saldo', callback_data: 'goto_saldo' }
+                { text: '💳 Deposit', callback_data: 'goto_deposit', style: 'success' },
+                { text: '🪙 Saldo', callback_data: 'goto_saldo', style: 'primary' }
             ]
         ];
         
@@ -257,7 +257,7 @@ Pilih fitur yang ingin digunakan:
         if (config.ownerIds.length === 1) {
             // Single owner
             inlineKeyboard.push([
-                { text: '💬 Chat dengan Admin', url: `tg://user?id=${config.ownerIds[0]}` }
+                { text: '💬 Chat dengan Admin', url: `tg://user?id=${config.ownerIds[0]}`, style: 'primary' }
             ]);
         } else {
             // Multiple owners - tampilkan semua
@@ -2514,10 +2514,10 @@ Pilih fitur yang ingin digunakan:
                 { text: '🪙 100', callback_data: `dep_set_${userId}_100` }
             ],
             [
-                { text: `✅ Deposit ${currentAmount} Token (${formatter.formatRupiah(totalPrice)})`, callback_data: `dep_confirm_${userId}_${currentAmount}` }
+                { text: `✅ Deposit ${currentAmount} Token (${formatter.formatRupiah(totalPrice)})`, callback_data: `dep_confirm_${userId}_${currentAmount}`, style: 'success' }
             ],
             [
-                { text: '❌ Batal', callback_data: `dep_cancel_${userId}` }
+                { text: '❌ Batal', callback_data: `dep_cancel_${userId}`, style: 'danger' }
             ]
         ];
 
@@ -2601,18 +2601,18 @@ Pilih fitur yang ingin digunakan:
         // If no QR string, add payment link button as fallback
         if (!midtransResult.qrString && midtransResult.redirectUrl) {
             inlineKeyboard.push([
-                { text: '💳 Bayar Sekarang', url: midtransResult.redirectUrl }
+                { text: '💳 Bayar Sekarang', url: midtransResult.redirectUrl, style: 'primary' }
             ]);
         }
         
         // Check status button (stores depositId and userId for validation)
         inlineKeyboard.push([
-            { text: '🔄 Cek Status Pembayaran', callback_data: `checkpay_${userId}_${depositId}` }
+            { text: '🔄 Cek Status Pembayaran', callback_data: `checkpay_${userId}_${depositId}`, style: 'primary' }
         ]);
         
         // Cancel button
         inlineKeyboard.push([
-            { text: '❌ Batalkan', callback_data: `cancelpay_${userId}_${depositId}` }
+            { text: '❌ Batalkan', callback_data: `cancelpay_${userId}_${depositId}`, style: 'danger' }
         ]);
         
         // Add support buttons

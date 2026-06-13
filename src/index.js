@@ -688,7 +688,7 @@ async function startBot() {
                             parse_mode: 'Markdown',
                             reply_markup: {
                                 inline_keyboard: [[
-                                    { text: '❌ Batal', callback_data: `menu_cancel_${userId}` }
+                                    { text: '❌ Batal', callback_data: `menu_cancel_${userId}`, style: 'danger' }
                                 ]]
                             }
                         });
