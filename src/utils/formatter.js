@@ -1877,6 +1877,64 @@ ${LINE.thin}
     return msg;
 }
 
+function facerecResultMessage(candidates, tokenUsed, requestId = '', remainingToken = 0) {
+    const maxShow = Math.min(candidates.length, 5);
+    let msg = `
+🔍 <b>HASIL FACE RECOGNITION</b>
+${LINE.double}
+
+📊 Total: <b>${candidates.length}</b> kandidat ditemukan
+`;
+
+    for (let i = 0; i < maxShow; i++) {
+        const c = candidates[i];
+        const score = c.score || 0;
+
+        if (maxShow > 1) {
+            msg += `\n━━ ${i + 1}. ${escapeHtml(c.name || '-')} ━━\n`;
+        }
+
+        msg += `
+👤 <b>DATA PRIBADI</b>
+${LINE.single}
+├ Nama             : ${escapeHtml(c.name || '-')}
+├ NIK              : <code>${c.nik || '-'}</code>
+├ Jenis Kelamin    : ${escapeHtml(c.gender || '-')}
+├ Umur             : ${escapeHtml(c.age || '-')} tahun
+├ Tgl Lahir        : ${escapeHtml(c.birth_of_date || '-')}
+├ Tempat Lahir     : ${escapeHtml(c.birth_of_place || '-')}
+├ Agama            : ${escapeHtml(c.religion || '-')}
+├ Status Kawin     : ${escapeHtml(c.marital_status || '-')}
+├ Pekerjaan        : ${escapeHtml(c.occupation || '-')}
+└ Gol. Darah       : ${escapeHtml(c.blood_type || '-')}
+
+📍 <b>ALAMAT</b>
+${LINE.single}
+├ Alamat           : ${escapeHtml(c.address || '-')}
+├ RT/RW            : ${escapeHtml(c.rt || '-')}/${escapeHtml(c.rw || '-')}
+├ Kel/Desa         : ${escapeHtml(c.sub_distric || '-')}
+├ Kecamatan        : ${escapeHtml(c.distric || '-')}
+├ Kab/Kota         : ${escapeHtml(c.regency || '-')}
+└ Provinsi         : ${escapeHtml(c.province || '-')}`;
+
+        if (c.family_card) {
+            msg += `\n\n👨‍👩‍👧‍👦 <b>KARTU KELUARGA</b>\n${LINE.single}\n└ No KK : <code>${c.family_card}</code>`;
+        }
+
+        msg += `\n\n🎯 <b>Skor Kecocokan: ${score}%</b>`;
+    }
+
+    if (candidates.length > 5) {
+        msg += `\n\n<i>dan ${candidates.length - 5} kandidat lainnya...</i>`;
+    }
+
+    msg += `\n\n${LINE.double}
+🆔 ID: <code>${requestId}</code>
+🪙 Token: <b>-${tokenUsed}</b> (Sisa: <b>${remainingToken}</b>)`;
+
+    return msg;
+}
+
 module.exports = {
     EMOJI,
     LINE,
@@ -1917,5 +1975,5 @@ module.exports = {
     referralStatsMessage,
     referralWelcomeMessage,
     referralAlreadyRegisteredMessage,
-    referralBonusNotification
-};
+    referralBonusNotification,
+    facerecResultMessage

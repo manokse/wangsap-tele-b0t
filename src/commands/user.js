@@ -2305,6 +2305,112 @@ Pilih fitur yang ingin digunakan:
     },
 
     /**
+     * Command: /facerec
+     * Face Recognition - kirim/reply foto wajah
+     */
+    async facerec(bot, msg, args) {
+        const userId = msg.from.id;
+        const firstName = msg.from.first_name || 'User';
+        const username = msg.from.username || null;
+
+        // Cek apakah ada foto (langsung atau reply ke foto)
+        let fileId = null;
+        if (msg.photo && msg.photo.length > 0) {
+            // Foto langsung dengan caption /facerec
+            fileId = msg.photo[msg.photo.length - 1].file_id;
+        } else if (msg.reply_to_message?.photo) {
+            // Reply ke foto
+            const photos = msg.reply_to_message.photo;
+            fileId = photos[photos.length - 1].file_id;
+        }
+
+        if (!fileId) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Format Salah</b>\n\nCara pakai:\n1. Kirim foto dengan caption <code>/facerec</code>\n2. Atau reply foto dengan <code>/facerec</code>\n\n🔍 Fitur ini mencari data berdasarkan foto wajah`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const user = db.getOrCreateUser(userId, username, firstName);
+        const settings = db.getAllSettings();
+
+        if (settings.mt_facerec === 'true') {
+            await bot.sendMessage(msg.chat.id,
+                `⚠️ <b>MAINTENANCE</b>\n\nFitur <b>FACE RECOGNITION</b> sedang dalam perbaikan.`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const facerecCost = parseInt(settings.facerec_cost) || config.facerecCost;
+
+        if (user.token_balance < facerecCost) {
+            await bot.sendMessage(msg.chat.id,
+                `❌ <b>Saldo Tidak Cukup</b>\n\n🪙 Saldo: <b>${user.token_balance} token</b>\n💰 Biaya: <b>${facerecCost} token</b>\n\nKetik <code>/deposit</code> untuk top up`,
+                { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+            );
+            return;
+        }
+
+        const requestId = db.createApiRequest(userId, 'facerec', 'image', 'facerec', facerecCost);
+
+        const processingMsg = await bot.sendMessage(msg.chat.id,
+            `⏳ <b>Sedang Proses...</b>\n\n🔍 Face Recognition: menganalisis foto\n🆔 ID: <code>${requestId}</code>\n\n<i>Mohon tunggu sebentar...</i>`,
+            { parse_mode: 'HTML', reply_to_message_id: msg.message_id }
+        );
+
+        db.deductTokens(userId, facerecCost);
+
+        try {
+            // Download foto dari Telegram
+            const fileLink = await bot.getFileLink(fileId);
+            const imageResponse = await axios.get(fileLink, { responseType: 'arraybuffer', timeout: 30000 });
+            const imageBuffer = Buffer.from(imageResponse.data, 'binary');
+
+            const result = await apiService.checkFaceRec(imageBuffer);
+
+            const updatedUser = db.getUser(userId);
+            const remainingToken = updatedUser?.token_balance || 0;
+
+            if (!result.success) {
+                if (result.refund) {
+                    db.refundTokens(userId, facerecCost);
+                }
+                db.updateApiRequest(requestId, 'failed', null, null, result.error);
+                db.createTransaction(userId, 'check', facerecCost, 'Face Recognition gagal', 'image', 'failed');
+
+                const refundText = result.refund ? `\n🪙 Token dikembalikan: <b>${facerecCost} token</b>` : '';
+                await bot.editMessageText(
+                    `❌ <b>Gagal</b>\n\n${formatter.escapeHtml(result.error)}${refundText}\n🆔 ID: <code>${requestId}</code>`,
+                    { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
+                );
+                return;
+            }
+
+            db.updateApiRequest(requestId, 'success', 'Face Recognition berhasil', null, null, result.data);
+            db.createTransaction(userId, 'check', facerecCost, 'Face Recognition berhasil', 'image', 'success');
+
+            const textResult = formatter.facerecResultMessage(result.data, facerecCost, requestId, remainingToken);
+            await bot.editMessageText(textResult, {
+                chat_id: msg.chat.id,
+                message_id: processingMsg.message_id,
+                parse_mode: 'HTML'
+            });
+
+        } catch (error) {
+            db.refundTokens(userId, facerecCost);
+            db.updateApiRequest(requestId, 'failed', null, null, error.message);
+            db.createTransaction(userId, 'check', facerecCost, 'Face Recognition gagal', 'image', 'failed');
+
+            await bot.editMessageText(
+                `❌ <b>Error</b>\n\n${formatter.escapeHtml(error.message)}\n\n🪙 Token dikembalikan: <b>${facerecCost} token</b>\n🆔 ID: <code>${requestId}</code>`,
+                { chat_id: msg.chat.id, message_id: processingMsg.message_id, parse_mode: 'HTML' }
+            ).catch(() => {});
+        }
+    },
+
+    /**
      * Command: /deposit [jumlah] [kode_promo]
      */
     async deposit(bot, msg, args) {

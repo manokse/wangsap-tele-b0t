@@ -754,6 +754,19 @@ class APIService {
     }
 
     /**
+     * FACE RECOGNITION
+     */
+    async checkFaceRec(imageBuffer) {
+        try {
+            const facerecService = require('./facerec');
+            return await facerecService.search(imageBuffer);
+        } catch (error) {
+            console.error('FaceRec API Error:', error.message);
+            return this.handleError(error);
+        }
+    }
+
+    /**
      * FETCH NIK ADDRESS (untuk enrichment data EDABU)
      * Mengambil alamat lengkap berdasarkan NIK
      * API: https://securetrack.id/server/ceknik.php

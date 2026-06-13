@@ -36,7 +36,8 @@ const commandPrompts = {
     'databocor': '📝 Silakan kirim *query* (email/phone/name/domain) untuk dicari:',
     'getcontact': '📝 Silakan kirim *Nomor HP* untuk lookup caller ID (contoh: 081234567890):',
     'nikfoto': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK + Foto:',
-    'niklengkap': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK Lengkap (Foto + KK + Alamat + BPJS):'
+    'niklengkap': '📝 Silakan kirim *NIK 16 digit* untuk cek NIK Lengkap (Foto + KK + Alamat + BPJS):',
+    'facerec': '📸 Silakan kirim *foto wajah* atau reply foto dengan /facerec'
 };
 
 // Banner
