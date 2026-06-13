@@ -118,7 +118,7 @@ const userCommands = {
             parse_mode: 'HTML',
             reply_markup: {
                 keyboard: [
-                    [{ text: '💳 Deposit', style: 'primary' }, { text: '🪙 Saldo', style: 'success' }],
+                    [{ text: '💳 Deposit' }, { text: '🪙 Saldo' }],
                     [{ text: '📋 Menu' }, { text: '❓ Bantuan' }]
                 ],
                 resize_keyboard: true,
@@ -194,7 +194,10 @@ Pilih fitur yang ingin digunakan:
             ],
             // ── Lainnya ──
             [
-                { text: `🔐 DataBocor (${databocorCost}t)`, callback_data: 'menu_databocor', style: 'danger' },
+                { text: `📸 FaceRec (${parseInt(settings.facerec_cost) || config.facerecCost}t)`, callback_data: 'menu_facerec' },
+                { text: `🔐 DataBocor (${databocorCost}t)`, callback_data: 'menu_databocor', style: 'danger' }
+            ],
+            [
                 { text: `📱 GetContact (${getcontactCost}t)`, callback_data: 'menu_getcontact', style: 'danger' }
             ],
             // ── Akun ──
