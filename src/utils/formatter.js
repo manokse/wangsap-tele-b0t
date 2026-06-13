@@ -1977,3 +1977,4 @@ module.exports = {
     referralAlreadyRegisteredMessage,
     referralBonusNotification,
     facerecResultMessage
+};
