@@ -89,14 +89,37 @@ async function startBot() {
                     console.log('  - text:', msg.text);
                 }
                 
+                // Ignore group messages (optional, bisa diubah)
+                if (msg.chat.type !== 'private') return;
+                
+                // ══════════════════════════════════════
+                // PHOTO + PENDING FACEREC HANDLER
+                // Jika user kirim foto dan ada pending facerec,
+                // langsung proses tanpa perlu ketik /facerec
+                // ══════════════════════════════════════
+                if (msg.photo && msg.photo.length > 0) {
+                    const userId = msg.from.id;
+                    const pending = global.pendingCommands.get(userId);
+                    
+                    if (pending && pending.command === 'facerec' && (Date.now() - pending.timestamp < 5 * 60 * 1000)) {
+                        // Delete prompt message
+                        if (pending.promptMessageId && pending.chatId) {
+                            await bot.deleteMessage(pending.chatId, pending.promptMessageId).catch(() => {});
+                        }
+                        
+                        global.pendingCommands.delete(userId);
+                        console.log(`📸 [FACEREC-PENDING] ${msg.from.username || msg.from.first_name}: photo received, processing...`);
+                        
+                        await userCommands.facerec(bot, msg, []);
+                        return;
+                    }
+                }
+                
                 // Extract text from message or caption
                 let text = (msg.text || msg.caption || '').trim();
                 
                 // Ignore if no text/caption
                 if (!text) return;
-                
-                // Ignore group messages (optional, bisa diubah)
-                if (msg.chat.type !== 'private') return;
                 
                 // Handle keyboard button text commands (map to actual commands)
                 const keyboardMapping = {
